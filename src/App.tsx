@@ -77,6 +77,7 @@ export function App() {
   const [aiPrompt, setAiPrompt] = useState('');
   const [snapshotMenuOpen, setSnapshotMenuOpen] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
+  const [dirPage, setDirPage] = useState(1);
   const dashboardRef = useRef<HTMLDivElement>(null);
   const [selected9BoxCell, setSelected9BoxCell] = useState<{
     perf: Employee['performance'];
@@ -1071,7 +1072,15 @@ export function App() {
             )}
 
             {/* DIRECTORY TAB */}
-            {activeTab === 'directory' && (
+            {activeTab === 'directory' && (() => {
+              const pageSize = 9;
+              const totalPages = Math.max(1, Math.ceil(filteredEmployees.length / pageSize));
+              const safePage = Math.min(dirPage, totalPages);
+              const pageRows = filteredEmployees.slice(
+                (safePage - 1) * pageSize,
+                safePage * pageSize
+              );
+              return (
               <div className="flex-1 min-h-0 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5 flex flex-col justify-between animate-enter overflow-hidden">
                 <div className="flex items-center justify-between mb-2">
                   <div>
@@ -1081,6 +1090,27 @@ export function App() {
                     <p className="text-[11px] text-[var(--text-muted)]">
                       Click any employee to open their 360° profile
                     </p>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="text-[11px] text-[var(--text-muted)] tabular-nums">
+                      Page {safePage} of {totalPages}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={safePage <= 1}
+                      onClick={() => setDirPage((p) => Math.max(1, p - 1))}
+                      className="rounded-full border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-2.5 py-1 font-semibold disabled:opacity-40 hover:border-[#6B0F1A] cursor-pointer"
+                    >
+                      Prev
+                    </button>
+                    <button
+                      type="button"
+                      disabled={safePage >= totalPages}
+                      onClick={() => setDirPage((p) => Math.min(totalPages, p + 1))}
+                      className="rounded-full border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-2.5 py-1 font-semibold disabled:opacity-40 hover:border-[#6B0F1A] cursor-pointer"
+                    >
+                      Next
+                    </button>
                   </div>
                 </div>
                 <div className="flex-1 min-h-0 overflow-hidden">
@@ -1097,7 +1127,7 @@ export function App() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[var(--border-subtle)]">
-                      {filteredEmployees.slice(0, 9).map((emp) => (
+                      {pageRows.map((emp) => (
                         <tr
                           key={emp.id}
                           onClick={() => setSelectedEmployee(emp)}
@@ -1130,7 +1160,8 @@ export function App() {
                   </table>
                 </div>
               </div>
-            )}
+              );
+            })()}
           </main>
         </div>
       </div>

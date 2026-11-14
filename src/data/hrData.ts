@@ -293,7 +293,8 @@ export const HR_ALERTS = [
   },
 ];
 
-export const EMPLOYEES: Employee[] = [
+export const EMPLOYEES: Employee[] = (() => {
+  const featured: Employee[] = [
   {
     id: 'EMP-101',
     name: 'Amara Okafor',
@@ -646,7 +647,95 @@ export const EMPLOYEES: Employee[] = [
     reviewStatus: 'Completed',
     riskFactors: ['Balanced workload'],
   },
-];
+  ];
+
+  const firstNames = [
+    'Jordan', 'Aisha', 'Daniel', 'Chioma', 'Lucas', 'Mei', 'Samuel', 'Nora',
+    'Ibrahim', 'Clara', 'Victor', 'Sana', 'Ethan', 'Yuki', 'Gabriel', 'Fatima',
+    'Owen', 'Zara', 'Leo', 'Kemi', 'Noah', 'Maya', 'Julian', 'Tessa',
+  ];
+  const lastNames = [
+    'Mensah', 'Chen', 'Patel', 'Osei', 'Kim', 'Silva', 'Bauer', 'Kowalski',
+    'Adebayo', 'Hassan', 'Nguyen', 'Rossi', 'Sato', 'Brooks', 'Almeida', 'Grant',
+    'Moretti', 'Diaz', 'Ndiaye', 'Berg', 'Farouk', 'Iyer', 'Costa', 'Reed',
+  ];
+  const deptRoles: Record<Exclude<Department, 'All Departments'>, string[]> = {
+    Engineering: ['Software Engineer', 'Senior Backend Engineer', 'Frontend Engineer', 'Site Reliability Engineer', 'ML Engineer'],
+    'Sales & GTM': ['Account Executive', 'SDR', 'Solutions Consultant', 'Sales Operations Analyst', 'Partner Manager'],
+    'Product & Design': ['Product Manager', 'Product Designer', 'UX Researcher', 'Design Systems Lead'],
+    'Customer Success': ['Customer Success Manager', 'Onboarding Specialist', 'Technical Account Manager', 'Support Lead'],
+    'People & Ops': ['People Partner', 'Technical Recruiter', 'Workplace Operations Lead', 'Compensation Analyst'],
+    'Finance & Legal': ['Financial Analyst', 'Corporate Counsel', 'Accounting Manager', 'Procurement Lead'],
+  };
+  const deptManagers: Record<Exclude<Department, 'All Departments'>, string> = {
+    Engineering: 'Amara Okafor',
+    'Sales & GTM': 'Marcus Vance',
+    'Product & Design': 'Elena Rostova',
+    'Customer Success': 'Claire Bennett',
+    'People & Ops': 'Nadia Patel',
+    'Finance & Legal': 'Zainab Bello',
+  };
+  const hubs: Exclude<Location, 'All Hubs'>[] = ['New York', 'London', 'Lagos', 'Remote'];
+  const levels = ['L3', 'L4', 'L5', 'L6'];
+  const perfs: Employee['performance'][] = ['Exceeds', 'Strong', 'Strong', 'Developing'];
+  const pots: Employee['potential'][] = ['High', 'Moderate', 'Core'];
+
+  const generated: Employee[] = [...featured];
+  let seq = 117;
+
+  for (const stat of DEPARTMENT_STATS) {
+    const existingCount = featured.filter((e) => e.department === stat.name).length;
+    const needed = stat.headcount - existingCount;
+    const roles = deptRoles[stat.name];
+
+    for (let i = 0; i < needed; i++) {
+      const idx = seq + i;
+      const fn = firstNames[(idx * 7) % firstNames.length];
+      const ln = lastNames[(idx * 11) % lastNames.length];
+      const name = `${fn} ${ln}`;
+      const hub = hubs[(idx * 3) % hubs.length];
+      const level = levels[idx % levels.length];
+      const baseSalary = 92000 + (idx % 4) * 24000 + (idx % 7) * 2500;
+      const compaRatio = +(0.88 + ((idx * 5) % 24) / 100).toFixed(2);
+      const riskScore = 12 + ((idx * 13) % 62);
+      const flightRisk: Employee['flightRisk'] =
+        riskScore >= 70 ? 'High' : riskScore >= 45 ? 'Medium' : 'Low';
+      const perf = perfs[idx % perfs.length];
+      const pot = pots[(idx * 2) % pots.length];
+
+      generated.push({
+        id: `EMP-${seq}`,
+        name,
+        role: roles[i % roles.length],
+        department: stat.name,
+        location: hub,
+        level,
+        tenureYears: +(0.4 + ((idx * 7) % 58) / 10).toFixed(1),
+        salary: baseSalary,
+        compaRatio,
+        performance: perf,
+        potential: pot,
+        flightRisk,
+        riskScore,
+        eNpsContribution: 6 + (idx % 5),
+        manager: deptManagers[stat.name],
+        hireDate: `202${1 + (idx % 5)}-0${1 + (idx % 9)}-${10 + (idx % 18)}`,
+        avatarInitials: `${fn[0]}${ln[0]}`,
+        email: `${fn.toLowerCase()}.${ln.toLowerCase()}${seq}@crimsonpulse.io`,
+        reviewStatus: idx % 9 === 0 ? 'Overdue' : idx % 3 === 0 ? 'In Progress' : 'Completed',
+        riskFactors:
+          flightRisk === 'High'
+            ? ['Compa-ratio below band median', 'Tenure milestone approaching']
+            : flightRisk === 'Medium'
+            ? ['Moderate workload variance']
+            : ['Strong manager alignment'],
+      });
+      seq++;
+    }
+  }
+
+  return generated;
+})();
 
 export const PAY_EQUITY_BY_LEVEL = [
   { level: 'L3 Associate', maleAvg: 92000, femaleAvg: 91500, targetBand: 92000 },
