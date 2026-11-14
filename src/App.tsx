@@ -265,11 +265,11 @@ export function App() {
   };
 
   return (
-    <div className={darkOxblood ? 'dark-oxblood' : ''}>
+    <div className={`${darkOxblood ? 'dark-oxblood' : ''} h-screen w-screen overflow-hidden`}>
       {/* Single-screen locked viewport: zero scroll on left rail & zero scroll on right canvas */}
       <div
         ref={dashboardRef}
-        className="h-screen w-screen overflow-hidden flex bg-[var(--bg-canvas)] text-[var(--text-primary)] p-2.5 sm:p-3.5 gap-3"
+        className="h-full w-full overflow-hidden flex bg-[var(--bg-canvas)] text-[var(--text-primary)] p-2.5 sm:p-3.5 gap-3"
       >
         {/* Slim Icon-Only Left Sidebar Rail (matching reference image style) */}
         <aside className="relative z-30 w-16 shrink-0 h-full flex flex-col items-center justify-between py-4 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-xs overflow-visible">
