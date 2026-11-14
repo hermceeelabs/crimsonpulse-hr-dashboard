@@ -1,0 +1,1101 @@
+import React, { useMemo, useState } from 'react';
+import {
+  Users,
+  UserMinus,
+  HeartHandshake,
+  Clock,
+  Home,
+  UserPlus,
+  ShieldAlert,
+  Wallet,
+  Award,
+  Search,
+  Download,
+  Moon,
+  Sun,
+  ArrowUpRight,
+  ArrowDownRight,
+  Settings,
+  Bell,
+  Send,
+  Sparkles,
+  CheckCircle2,
+  BarChart3,
+} from 'lucide-react';
+import {
+  DEPARTMENTS,
+  LOCATIONS,
+  TIMEFRAMES,
+  DEPARTMENT_STATS,
+  MONTHLY_TRENDS,
+  RECRUITING_FUNNEL,
+  EXIT_REASONS,
+  HIRING_SOURCES,
+  OPEN_REQUISITIONS,
+  TENURE_COHORT_RISK,
+  EMPLOYEES,
+  PAY_EQUITY_BY_LEVEL,
+} from './data/hrData';
+import type { Department, Location, Timeframe, Employee } from './data/hrData';
+import {
+  Sparkline,
+  HeadcountTrendChart,
+  DepartmentBarChart,
+  AttritionDonutChart,
+} from './components/Charts';
+import { EmployeeDrawer } from './components/EmployeeDrawer';
+
+type NavTab =
+  | 'overview'
+  | 'talent'
+  | 'retention'
+  | 'compensation'
+  | 'performance'
+  | 'directory';
+
+const RAIL_ITEMS: { id: NavTab; label: string; icon: React.FC<{ className?: string }> }[] = [
+  { id: 'overview', label: 'Overview', icon: Home },
+  { id: 'talent', label: 'Talent & Hiring', icon: UserPlus },
+  { id: 'retention', label: 'Retention & Risk', icon: ShieldAlert },
+  { id: 'compensation', label: 'Compensation', icon: Wallet },
+  { id: 'performance', label: 'Performance', icon: Award },
+  { id: 'directory', label: 'Directory', icon: Users },
+];
+
+export function App() {
+  const [activeTab, setActiveTab] = useState<NavTab>('overview');
+  const [selectedDept, setSelectedDept] = useState<Department>('All Departments');
+  const [selectedLocation, setSelectedLocation] = useState<Location>('All Hubs');
+  const [selectedTimeframe, setSelectedTimeframe] = useState<Timeframe>('Q4 2026');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSearchInput, setShowSearchInput] = useState(false);
+  const [darkOxblood, setDarkOxblood] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [selected9BoxCell, setSelected9BoxCell] = useState<{
+    perf: Employee['performance'];
+    pot: Employee['potential'];
+  } | null>(null);
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => {
+      setToast((curr) => (curr === msg ? null : curr));
+    }, 3000);
+  };
+
+  const filteredDepts = useMemo(() => {
+    if (selectedDept === 'All Departments') return DEPARTMENT_STATS;
+    return DEPARTMENT_STATS.filter((d) => d.name === selectedDept);
+  }, [selectedDept]);
+
+  const locationFactor = useMemo(() => {
+    switch (selectedLocation) {
+      case 'New York':
+        return 0.34;
+      case 'London':
+        return 0.26;
+      case 'Lagos':
+        return 0.22;
+      case 'Remote':
+        return 0.18;
+      default:
+        return 1;
+    }
+  }, [selectedLocation]);
+
+  const timeframeAdjust = useMemo(() => {
+    switch (selectedTimeframe) {
+      case 'Q3 2026':
+        return { hc: 0.96, attr: -0.6, enps: -2, ttf: 2 };
+      case 'YTD 2026':
+        return { hc: 0.99, attr: -0.2, enps: -1, ttf: 1 };
+      case 'Last 12 Months':
+        return { hc: 1, attr: 0.3, enps: -1, ttf: 0 };
+      default:
+        return { hc: 1, attr: 0, enps: 0, ttf: 0 };
+    }
+  }, [selectedTimeframe]);
+
+  const kpis = useMemo(() => {
+    const baseHeadcount = filteredDepts.reduce((sum, d) => sum + d.headcount, 0);
+    const totalHeadcount = Math.max(
+      12,
+      Math.round(baseHeadcount * locationFactor * timeframeAdjust.hc)
+    );
+    const totalOpenReqs = Math.max(
+      1,
+      Math.round(filteredDepts.reduce((sum, d) => sum + d.openReqs, 0) * locationFactor)
+    );
+    const weightedAttrition =
+      filteredDepts.reduce((sum, d) => sum + d.attritionRate * d.headcount, 0) /
+      (baseHeadcount || 1);
+    const attritionRate = Math.max(3.2, +(weightedAttrition + timeframeAdjust.attr).toFixed(1));
+    const weightedEnps =
+      filteredDepts.reduce((sum, d) => sum + d.eNps * d.headcount, 0) / (baseHeadcount || 1);
+    const eNps = Math.round(weightedEnps + timeframeAdjust.enps);
+    const weightedTtf =
+      filteredDepts.reduce((sum, d) => sum + d.avgTimeToFill * d.headcount, 0) /
+      (baseHeadcount || 1);
+    const avgTimeToFill = Math.round(weightedTtf + timeframeAdjust.ttf);
+
+    return {
+      totalHeadcount,
+      totalOpenReqs,
+      attritionRate,
+      eNps,
+      avgTimeToFill,
+      scaleFactor: totalHeadcount / 426,
+    };
+  }, [filteredDepts, locationFactor, timeframeAdjust]);
+
+  const filteredEmployees = useMemo(() => {
+    return EMPLOYEES.filter((emp) => {
+      if (selectedDept !== 'All Departments' && emp.department !== selectedDept) return false;
+      if (selectedLocation !== 'All Hubs' && emp.location !== selectedLocation) return false;
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        return (
+          emp.name.toLowerCase().includes(q) ||
+          emp.role.toLowerCase().includes(q) ||
+          emp.department.toLowerCase().includes(q)
+        );
+      }
+      return true;
+    }).sort((a, b) => b.riskScore - a.riskScore);
+  }, [selectedDept, selectedLocation, searchQuery]);
+
+  const filteredReqs = useMemo(() => {
+    return OPEN_REQUISITIONS.filter((r) => {
+      if (selectedDept !== 'All Departments' && r.department !== selectedDept) return false;
+      if (selectedLocation !== 'All Hubs' && r.location !== selectedLocation) return false;
+      return true;
+    });
+  }, [selectedDept, selectedLocation]);
+
+  const handleExportCSV = () => {
+    const headers = ['ID', 'Name', 'Role', 'Department', 'Location', 'Salary', 'CompaRatio', 'Risk'];
+    const rows = filteredEmployees.map((e) => [
+      e.id,
+      `"${e.name}"`,
+      `"${e.role}"`,
+      `"${e.department}"`,
+      e.location,
+      e.salary,
+      e.compaRatio,
+      e.riskScore,
+    ]);
+    const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `crimsonpulse-hr-${selectedDept.toLowerCase().replace(/\s+/g, '-')}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    showToast(`Exported ${filteredEmployees.length} records`);
+  };
+
+  const handleAiSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!aiPrompt.trim()) return;
+    const q = aiPrompt.toLowerCase();
+    if (q.includes('risk') || q.includes('attrition')) setActiveTab('retention');
+    else if (q.includes('pay') || q.includes('comp') || q.includes('salary')) setActiveTab('compensation');
+    else if (q.includes('hire') || q.includes('talent') || q.includes('funnel')) setActiveTab('talent');
+    else if (q.includes('9') || q.includes('perf')) setActiveTab('performance');
+    else showToast(`Insight ready: "${aiPrompt}"`);
+    setAiPrompt('');
+  };
+
+  return (
+    <div className={darkOxblood ? 'dark-oxblood' : ''}>
+      {/* Single-screen locked viewport: zero scroll on left rail & zero scroll on right canvas */}
+      <div className="h-screen w-screen overflow-hidden flex bg-[var(--bg-canvas)] text-[var(--text-primary)] p-2.5 sm:p-3.5 gap-3">
+        {/* Slim Icon-Only Left Sidebar Rail (matching reference image style) */}
+        <aside className="relative z-30 w-16 shrink-0 h-full flex flex-col items-center justify-between py-4 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-xs overflow-visible">
+          {/* Top Brand Mark */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('overview')}
+            aria-label="CrimsonPulse HR"
+            className="group relative h-10 w-10 rounded-2xl flex items-center justify-center bg-gradient-to-br from-[#6B0F1A] to-[#450912] text-white shadow-sm cursor-pointer"
+          >
+            <BarChart3 className="h-5 w-5" />
+            <span className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-xl bg-[#26060B] px-3 py-1.5 text-xs font-semibold text-white shadow-lg opacity-0 -translate-x-1 transition-all duration-150 group-hover:opacity-100 group-hover:translate-x-0">
+              CrimsonPulse HR
+            </span>
+          </button>
+
+          {/* Center Circular Icon Stack */}
+          <nav className="flex flex-col items-center gap-3">
+            {RAIL_ITEMS.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setActiveTab(item.id)}
+                  aria-label={item.label}
+                  className={`group relative h-10 w-10 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                    isActive
+                      ? 'bg-[#6B0F1A] text-white shadow-md shadow-[#6B0F1A]/25 scale-105'
+                      : 'bg-[var(--bg-canvas)] text-[var(--text-secondary)] border border-[var(--border-subtle)] hover:border-[#6B0F1A]/50 hover:text-[#6B0F1A] shadow-2xs'
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-xl bg-[#26060B] px-3 py-1.5 text-xs font-semibold text-white shadow-lg opacity-0 -translate-x-1 transition-all duration-150 group-hover:opacity-100 group-hover:translate-x-0">
+                    {item.label}
+                  </span>
+                </button>
+              );
+            })}
+          </nav>
+
+          {/* Bottom Settings / Theme Circular Button */}
+          <button
+            type="button"
+            onClick={() => setDarkOxblood((d) => !d)}
+            aria-label="Toggle Oxblood Theme"
+            className="group relative h-10 w-10 rounded-full flex items-center justify-center bg-[var(--bg-canvas)] text-[var(--text-secondary)] border border-[var(--border-subtle)] hover:border-[#6B0F1A]/50 hover:text-[#6B0F1A] transition cursor-pointer"
+          >
+            <Settings className="h-4 w-4" />
+            <span className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-xl bg-[#26060B] px-3 py-1.5 text-xs font-semibold text-white shadow-lg opacity-0 -translate-x-1 transition-all duration-150 group-hover:opacity-100 group-hover:translate-x-0">
+              {darkOxblood ? 'Ivory Mode' : 'Oxblood Dark'}
+            </span>
+          </button>
+        </aside>
+
+        {/* Right Main Content Frame (zero vertical scroll, fits 100vh) */}
+        <div className="flex-1 min-w-0 h-full flex flex-col gap-3 overflow-hidden">
+          {/* Top Floating Bar (search, filters, actions) */}
+          <header className="shrink-0 flex items-center justify-between gap-3 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 py-2 shadow-xs">
+            {/* Left Search */}
+            <div className="flex items-center gap-3">
+              {showSearchInput ? (
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[var(--text-muted)]" />
+                  <input
+                    type="text"
+                    autoFocus
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onBlur={() => !searchQuery && setShowSearchInput(false)}
+                    placeholder="Search people..."
+                    className="w-44 rounded-full border border-[#6B0F1A]/40 bg-[var(--bg-canvas)] pl-8 pr-3 py-1 text-xs focus:outline-none"
+                  />
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowSearchInput(true)}
+                  title="Search"
+                  className="h-8 w-8 rounded-full flex items-center justify-center border border-[var(--border-subtle)] bg-[var(--bg-canvas)] text-[var(--text-secondary)] hover:border-[#6B0F1A]/50 cursor-pointer"
+                >
+                  <Search className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Center/Right Compact Filters */}
+            <div className="hidden xl:flex items-center gap-2 text-xs">
+              <select
+                value={selectedDept}
+                onChange={(e) => setSelectedDept(e.target.value as Department)}
+                className="rounded-full border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-3 py-1.5 font-medium focus:outline-none cursor-pointer"
+              >
+                {DEPARTMENTS.map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={selectedLocation}
+                onChange={(e) => setSelectedLocation(e.target.value as Location)}
+                className="rounded-full border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-3 py-1.5 font-medium focus:outline-none cursor-pointer"
+              >
+                {LOCATIONS.map((loc) => (
+                  <option key={loc} value={loc}>
+                    {loc}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={selectedTimeframe}
+                onChange={(e) => setSelectedTimeframe(e.target.value as Timeframe)}
+                className="rounded-full border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-3 py-1.5 font-medium focus:outline-none cursor-pointer"
+              >
+                {TIMEFRAMES.map((tf) => (
+                  <option key={tf} value={tf}>
+                    {tf}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Right Avatar Stack + Export + Theme + Profile */}
+            <div className="flex items-center gap-2.5">
+              <div className="hidden sm:flex -space-x-2">
+                {EMPLOYEES.slice(0, 3).map((e) => (
+                  <button
+                    key={e.id}
+                    type="button"
+                    onClick={() => setSelectedEmployee(e)}
+                    title={e.name}
+                    className="h-8 w-8 rounded-full bg-[#6B0F1A] text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-[var(--bg-surface)] hover:z-10 cursor-pointer"
+                  >
+                    {e.avatarInitials}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                onClick={handleExportCSV}
+                className="inline-flex items-center gap-1.5 rounded-full bg-[var(--bg-canvas)] border border-[var(--border-subtle)] hover:border-[#6B0F1A] px-3.5 py-1.5 text-xs font-semibold transition cursor-pointer"
+              >
+                <Download className="h-3.5 w-3.5 text-[#6B0F1A]" />
+                <span>Export</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setDarkOxblood((d) => !d)}
+                title="Toggle Theme"
+                className="h-8 w-8 rounded-full flex items-center justify-center border border-[var(--border-subtle)] bg-[var(--bg-canvas)] text-[var(--text-secondary)] hover:border-[#6B0F1A] cursor-pointer"
+              >
+                {darkOxblood ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => showToast('All HR systems synced · Q4 2026')}
+                className="h-8 w-8 rounded-full flex items-center justify-center border border-[var(--border-subtle)] bg-[var(--bg-canvas)] text-[var(--text-secondary)] hover:border-[#6B0F1A] cursor-pointer"
+              >
+                <Bell className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </header>
+
+          {/* Single-Screen Bento Content (min-h-0 flex-1, zero scroll) */}
+          <main className="flex-1 min-h-0 overflow-hidden flex flex-col gap-3">
+            {activeTab === 'overview' && (
+              <div className="flex-1 min-h-0 grid grid-rows-[auto_minmax(0,1.08fr)_minmax(0,0.92fr)] gap-3 animate-enter">
+                {/* Row 1: 4 Compact KPI Cards */}
+                <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                  <KpiCard
+                    title="Total Headcount"
+                    value={kpis.totalHeadcount.toLocaleString()}
+                    delta="+6.2% QoQ"
+                    positive
+                    icon={<Users className="h-4 w-4 text-[#6B0F1A]" />}
+                    sparkData={[372, 379, 386, 392, 403, 411, 420, 426]}
+                  />
+                  <KpiCard
+                    title="Annualized Attrition"
+                    value={`${kpis.attritionRate}%`}
+                    delta="-1.4% vs Q3"
+                    positive
+                    icon={<UserMinus className="h-4 w-4 text-[#6B0F1A]" />}
+                    sparkData={[12.8, 12.4, 11.9, 11.6, 11.2, 10.9, 10.6, 10.4]}
+                    sparkColor="#B83B5E"
+                  />
+                  <KpiCard
+                    title="Engagement (eNPS)"
+                    value={`+${kpis.eNps}`}
+                    delta="+5 pts YoY"
+                    positive
+                    icon={<HeartHandshake className="h-4 w-4 text-[#6B0F1A]" />}
+                    sparkData={[48, 49, 51, 50, 52, 54, 55, 56]}
+                  />
+                  <KpiCard
+                    title="Avg. Time-to-Fill"
+                    value={`${kpis.avgTimeToFill}d`}
+                    delta="-4 days QoQ"
+                    positive
+                    icon={<Clock className="h-4 w-4 text-[#6B0F1A]" />}
+                    sparkData={[41, 39, 38, 36, 35, 34, 33, 32]}
+                  />
+                </section>
+
+                {/* Row 2: Headcount Velocity (7 cols) + Department Breakdown (5 cols) */}
+                <section className="min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-3">
+                  <div className="lg:col-span-7 min-h-0 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-5 py-3.5 shadow-xs flex flex-col overflow-hidden">
+                    <div className="shrink-0 flex items-center justify-between mb-1.5">
+                      <div>
+                        <h2 className="text-sm font-bold leading-tight">Headcount Velocity & Turnover</h2>
+                        <p className="text-[11px] text-[var(--text-muted)]">
+                          12-month active workforce with hires vs. departures
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3 text-[11px] text-[var(--text-secondary)]">
+                        <span className="inline-flex items-center gap-1.5">
+                          <span className="h-2 w-2 rounded-full bg-[#6B0F1A]" /> Headcount
+                        </span>
+                        <span className="inline-flex items-center gap-1.5">
+                          <span className="h-2 w-2 rounded-sm bg-[#B83B5E]/60" /> Hires
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex-1 min-h-0 overflow-hidden">
+                      <HeadcountTrendChart data={MONTHLY_TRENDS} scaleFactor={kpis.scaleFactor} />
+                    </div>
+                  </div>
+
+                  <div className="lg:col-span-5 min-h-0 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-5 py-3.5 shadow-xs flex flex-col overflow-hidden">
+                    <div className="shrink-0 flex items-center justify-between mb-1.5">
+                      <div>
+                        <h2 className="text-sm font-bold leading-tight">Department Headcount</h2>
+                        <p className="text-[11px] text-[var(--text-muted)]">
+                          Click any bar to filter dashboard
+                        </p>
+                      </div>
+                      {selectedDept !== 'All Departments' && (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedDept('All Departments')}
+                          className="text-[11px] font-semibold text-[#6B0F1A] hover:underline cursor-pointer"
+                        >
+                          Reset
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex-1 min-h-0 flex flex-col justify-center overflow-hidden">
+                      <DepartmentBarChart
+                        departments={DEPARTMENT_STATS}
+                        selectedDept={selectedDept}
+                        onSelectDept={(dept) =>
+                          setSelectedDept((prev) => (prev === dept ? 'All Departments' : dept))
+                        }
+                      />
+                    </div>
+                  </div>
+                </section>
+
+                {/* Row 3: 3-Column Bento Bottom Row */}
+                <section className="min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-3">
+                  {/* Card 1: Recruiting Pipeline */}
+                  <div className="lg:col-span-4 min-h-0 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-5 py-3.5 shadow-xs flex flex-col overflow-hidden">
+                    <div className="shrink-0 flex items-center justify-between mb-2">
+                      <h2 className="text-sm font-bold">Recruiting Pipeline</h2>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('talent')}
+                        className="text-[11px] font-semibold text-[#6B0F1A] hover:underline cursor-pointer"
+                      >
+                        View all ↗
+                      </button>
+                    </div>
+                    <div className="flex-1 min-h-0 flex flex-col justify-center space-y-2">
+                      {RECRUITING_FUNNEL.slice(0, 5).map((step, i) => {
+                        const pct = Math.max(12, (step.count / RECRUITING_FUNNEL[0].count) * 100);
+                        return (
+                          <div key={step.stage} className="space-y-0.5">
+                            <div className="flex items-center justify-between text-[11px]">
+                              <span className="font-medium truncate">{step.stage}</span>
+                              <span className="tabular-nums font-bold">
+                                {step.count.toLocaleString()}
+                              </span>
+                            </div>
+                            <div className="h-1.5 w-full rounded-full bg-[var(--bg-surface-muted)] overflow-hidden">
+                              <div
+                                className="h-full rounded-full"
+                                style={{
+                                  width: `${pct}%`,
+                                  backgroundColor: i > 2 ? '#6B0F1A' : '#A12536',
+                                }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Card 2: Retention Watchlist (2x2 horizontal compact cards) */}
+                  <div className="lg:col-span-4 min-h-0 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-5 py-3.5 shadow-xs flex flex-col overflow-hidden">
+                    <div className="shrink-0 flex items-center justify-between mb-2">
+                      <h2 className="text-sm font-bold">Retention Watchlist</h2>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('retention')}
+                        className="text-[11px] font-semibold text-[#6B0F1A] hover:underline cursor-pointer"
+                      >
+                        View all ↗
+                      </button>
+                    </div>
+                    <div className="flex-1 min-h-0 grid grid-cols-2 grid-rows-2 gap-2">
+                      {filteredEmployees.slice(0, 4).map((emp) => (
+                        <button
+                          key={emp.id}
+                          type="button"
+                          onClick={() => setSelectedEmployee(emp)}
+                          className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-canvas)]/70 hover:border-[#6B0F1A] px-2.5 py-2 text-left transition cursor-pointer flex items-center gap-2.5 min-w-0"
+                        >
+                          <div className="h-8 w-8 shrink-0 rounded-full bg-gradient-to-br from-[#6B0F1A] to-[#B83B5E] text-white text-[10px] font-bold flex items-center justify-center">
+                            {emp.avatarInitials}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="text-[11px] font-bold truncate">{emp.name}</div>
+                            <div className="text-[10px] text-[var(--text-muted)] truncate">
+                              {emp.role}
+                            </div>
+                            <div className="text-[10px] font-semibold text-[#6B0F1A] tabular-nums">
+                              Risk {emp.riskScore}/100
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Card 3: HR Copilot Card */}
+                  <div className="lg:col-span-4 min-h-0 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-5 py-3.5 shadow-xs flex flex-col justify-between overflow-hidden">
+                    <div className="flex flex-col items-center text-center gap-1">
+                      <div
+                        className="h-9 w-9 rounded-full flex items-center justify-center shadow-md"
+                        style={{
+                          background:
+                            'radial-gradient(circle at 30% 30%, #F0CCD1 0%, #B83B5E 45%, #450912 100%)',
+                        }}
+                      >
+                        <Sparkles className="h-4 w-4 text-white" />
+                      </div>
+                      <h2 className="text-xs font-bold leading-snug">
+                        Welcome, Nadia ·{' '}
+                        <span className="font-medium text-[var(--text-secondary)]">
+                          What HR insight do you need?
+                        </span>
+                      </h2>
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('retention')}
+                        className="rounded-full border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-2.5 py-1 text-[10px] font-semibold hover:border-[#6B0F1A] cursor-pointer"
+                      >
+                        Flight risk
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('compensation')}
+                        className="rounded-full border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-2.5 py-1 text-[10px] font-semibold hover:border-[#6B0F1A] cursor-pointer"
+                      >
+                        Pay parity
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleExportCSV}
+                        className="rounded-full border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-2.5 py-1 text-[10px] font-semibold hover:border-[#6B0F1A] cursor-pointer"
+                      >
+                        Get reports
+                      </button>
+                    </div>
+
+                    <form
+                      onSubmit={handleAiSubmit}
+                      className="flex items-center gap-2 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-3 py-1"
+                    >
+                      <input
+                        type="text"
+                        value={aiPrompt}
+                        onChange={(e) => setAiPrompt(e.target.value)}
+                        placeholder="Ask anything about your workforce..."
+                        className="flex-1 bg-transparent text-xs focus:outline-none"
+                      />
+                      <button
+                        type="submit"
+                        className="h-6 w-6 rounded-full bg-[#6B0F1A] text-white flex items-center justify-center hover:bg-[#450912] cursor-pointer"
+                      >
+                        <Send className="h-3 w-3" />
+                      </button>
+                    </form>
+                  </div>
+                </section>
+              </div>
+            )}
+
+            {/* TALENT & HIRING TAB (single-screen fit) */}
+            {activeTab === 'talent' && (
+              <div className="flex-1 min-h-0 grid grid-rows-[auto_1fr] gap-3 animate-enter">
+                <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                  <KpiCard
+                    title="Open Requisitions"
+                    value={`${kpis.totalOpenReqs}`}
+                    delta="6 Critical"
+                    positive
+                    icon={<UserPlus className="h-4 w-4 text-[#6B0F1A]" />}
+                    sparkData={[28, 30, 31, 29, 33, 34, 35, 35]}
+                  />
+                  <KpiCard
+                    title="Offer Acceptance"
+                    value="88.5%"
+                    delta="+6.4% QoQ"
+                    positive
+                    icon={<CheckCircle2 className="h-4 w-4 text-[#6B0F1A]" />}
+                    sparkData={[79, 80, 82, 83, 85, 86, 88, 88.5]}
+                  />
+                  <KpiCard
+                    title="Avg. Cost-per-Hire"
+                    value="$4,280"
+                    delta="-9.2% YoY"
+                    positive
+                    icon={<Wallet className="h-4 w-4 text-[#6B0F1A]" />}
+                    sparkData={[4900, 4820, 4710, 4600, 4520, 4410, 4350, 4280]}
+                  />
+                  <KpiCard
+                    title="Avg. Time-to-Fill"
+                    value={`${kpis.avgTimeToFill}d`}
+                    delta="-4d vs target"
+                    positive
+                    icon={<Clock className="h-4 w-4 text-[#6B0F1A]" />}
+                    sparkData={[40, 39, 37, 36, 35, 34, 33, 32]}
+                  />
+                </section>
+
+                <div className="min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-3">
+                  <div className="lg:col-span-5 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5 flex flex-col justify-between">
+                    <div>
+                      <h2 className="text-sm font-bold">Source Quality & Velocity</h2>
+                      <p className="text-[11px] text-[var(--text-muted)]">Channel performance</p>
+                    </div>
+                    <table className="w-full text-xs my-auto">
+                      <thead>
+                        <tr className="border-b border-[var(--border-subtle)] text-[var(--text-muted)] text-left">
+                          <th className="pb-2 font-semibold">Channel</th>
+                          <th className="pb-2 font-semibold text-right">Hires</th>
+                          <th className="pb-2 font-semibold text-right">Accept</th>
+                          <th className="pb-2 font-semibold text-right">Quality</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[var(--border-subtle)] tabular-nums">
+                        {HIRING_SOURCES.map((src) => (
+                          <tr key={src.source}>
+                            <td className="py-3 font-semibold">{src.source}</td>
+                            <td className="py-3 text-right font-bold">{src.hires}</td>
+                            <td className="py-3 text-right">{src.acceptanceRate}%</td>
+                            <td className="py-3 text-right font-bold text-[#6B0F1A]">
+                              {src.qualityScore}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="lg:col-span-7 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5 flex flex-col justify-between">
+                    <div>
+                      <h2 className="text-sm font-bold">Priority Open Requisitions</h2>
+                      <p className="text-[11px] text-[var(--text-muted)]">
+                        {filteredReqs.length} active roles
+                      </p>
+                    </div>
+                    <table className="w-full text-xs my-auto">
+                      <thead>
+                        <tr className="border-b border-[var(--border-subtle)] text-[var(--text-muted)] text-left">
+                          <th className="pb-2 font-semibold">Role</th>
+                          <th className="pb-2 font-semibold">Department</th>
+                          <th className="pb-2 font-semibold">Stage</th>
+                          <th className="pb-2 font-semibold text-right">Days</th>
+                          <th className="pb-2 font-semibold text-right">Priority</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[var(--border-subtle)]">
+                        {filteredReqs.slice(0, 5).map((req) => (
+                          <tr key={req.id}>
+                            <td className="py-2.5 font-semibold">{req.title}</td>
+                            <td className="py-2.5 text-[var(--text-secondary)]">{req.department}</td>
+                            <td className="py-2.5">{req.stage}</td>
+                            <td className="py-2.5 text-right tabular-nums">{req.daysOpen}d</td>
+                            <td className="py-2.5 text-right font-bold text-[#6B0F1A]">
+                              {req.priority}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* RETENTION & RISK TAB */}
+            {activeTab === 'retention' && (
+              <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-3 animate-enter">
+                <div className="lg:col-span-6 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5 flex flex-col justify-between">
+                  <div>
+                    <h2 className="text-sm font-bold">Primary Exit Drivers (LTM)</h2>
+                    <p className="text-[11px] text-[var(--text-muted)]">
+                      Hover segments to inspect departure reasons
+                    </p>
+                  </div>
+                  <div className="my-auto">
+                    <AttritionDonutChart items={EXIT_REASONS} />
+                  </div>
+                </div>
+
+                <div className="lg:col-span-6 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5 flex flex-col justify-between">
+                  <div>
+                    <h2 className="text-sm font-bold">Tenure Cohort Risk Distribution</h2>
+                    <p className="text-[11px] text-[var(--text-muted)]">
+                      Low / Medium / High flight risk split
+                    </p>
+                  </div>
+                  <div className="space-y-4 my-auto">
+                    {TENURE_COHORT_RISK.map((row) => (
+                      <div key={row.cohort} className="space-y-1">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-semibold">{row.cohort}</span>
+                          <span className="tabular-nums text-[var(--text-muted)]">
+                            {row.count} staff · <strong className="text-[#6B0F1A]">{row.high}% high</strong>
+                          </span>
+                        </div>
+                        <div className="flex h-3 w-full overflow-hidden rounded-full bg-[var(--bg-surface-muted)]">
+                          <div style={{ width: `${row.low}%` }} className="bg-[#EAD2D6] dark:bg-[#4A1C24]" />
+                          <div style={{ width: `${row.medium}%` }} className="bg-[#B83B5E]" />
+                          <div style={{ width: `${row.high}%` }} className="bg-[#6B0F1A]" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* COMPENSATION & EQUITY TAB */}
+            {activeTab === 'compensation' && (
+              <div className="flex-1 min-h-0 grid grid-rows-[auto_1fr] gap-3 animate-enter">
+                <section className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <KpiCard
+                    title="Annualized Base Payroll"
+                    value="$67.4M"
+                    delta="94% of budget"
+                    positive
+                    icon={<Wallet className="h-4 w-4 text-[#6B0F1A]" />}
+                    sparkData={[61, 62, 63, 64, 65, 66, 67, 67.4]}
+                  />
+                  <KpiCard
+                    title="Org Avg. Compa-Ratio"
+                    value="1.00x"
+                    delta="On market median"
+                    positive
+                    icon={<ArrowUpRight className="h-4 w-4 text-[#6B0F1A]" />}
+                    sparkData={[0.97, 0.98, 0.98, 0.99, 0.99, 1.0, 1.0, 1.0]}
+                  />
+                  <KpiCard
+                    title="Gender Pay Parity"
+                    value="99.1%"
+                    delta="+0.6% YoY"
+                    positive
+                    icon={<Award className="h-4 w-4 text-[#6B0F1A]" />}
+                    sparkData={[97.8, 98.1, 98.4, 98.6, 98.8, 98.9, 99.0, 99.1]}
+                  />
+                </section>
+
+                <div className="rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5 flex flex-col justify-between">
+                  <div>
+                    <h2 className="text-sm font-bold">Pay Equity by Career Level</h2>
+                    <p className="text-[11px] text-[var(--text-muted)]">
+                      Male vs. Female average base salary compared to market band
+                    </p>
+                  </div>
+                  <div className="space-y-3 my-auto">
+                    {PAY_EQUITY_BY_LEVEL.map((lvl) => {
+                      const maxVal = 220000;
+                      return (
+                        <div key={lvl.level} className="space-y-1">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-bold">{lvl.level}</span>
+                            <span className="tabular-nums text-[var(--text-muted)]">
+                              Target: ${lvl.targetBand.toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="flex items-center gap-2">
+                              <span className="w-12 text-[11px] text-[var(--text-muted)]">Male</span>
+                              <div className="flex-1 h-2 rounded-full bg-[var(--bg-surface-muted)] overflow-hidden">
+                                <div
+                                  className="h-full rounded-full bg-[#6B0F1A]"
+                                  style={{ width: `${(lvl.maleAvg / maxVal) * 100}%` }}
+                                />
+                              </div>
+                              <span className="w-16 text-right text-xs font-semibold tabular-nums">
+                                ${lvl.maleAvg.toLocaleString()}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="w-12 text-[11px] text-[var(--text-muted)]">Female</span>
+                              <div className="flex-1 h-2 rounded-full bg-[var(--bg-surface-muted)] overflow-hidden">
+                                <div
+                                  className="h-full rounded-full bg-[#B83B5E]"
+                                  style={{ width: `${(lvl.femaleAvg / maxVal) * 100}%` }}
+                                />
+                              </div>
+                              <span className="w-16 text-right text-xs font-semibold tabular-nums">
+                                ${lvl.femaleAvg.toLocaleString()}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* PERFORMANCE & 9-BOX TAB */}
+            {activeTab === 'performance' && (
+              <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-3 animate-enter">
+                <div className="lg:col-span-7 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5 flex flex-col justify-between">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-sm font-bold">Interactive 9-Box Talent Matrix</h2>
+                      <p className="text-[11px] text-[var(--text-muted)]">
+                        Click any cell to inspect employees
+                      </p>
+                    </div>
+                    {selected9BoxCell && (
+                      <button
+                        type="button"
+                        onClick={() => setSelected9BoxCell(null)}
+                        className="text-xs font-semibold text-[#6B0F1A] hover:underline cursor-pointer"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2.5 my-auto">
+                    {(['High', 'Moderate', 'Core'] as const).map((pot) =>
+                      (['Developing', 'Strong', 'Exceeds'] as const).map((perf) => {
+                        const matches = filteredEmployees.filter(
+                          (e) => e.potential === pot && e.performance === perf
+                        );
+                        const isSelected =
+                          selected9BoxCell?.perf === perf && selected9BoxCell?.pot === pot;
+                        return (
+                          <button
+                            key={`${pot}-${perf}`}
+                            type="button"
+                            onClick={() => setSelected9BoxCell({ perf, pot })}
+                            className={`rounded-2xl p-3 text-left border transition cursor-pointer ${
+                              isSelected
+                                ? 'border-[#6B0F1A] bg-[var(--maroon-100)] dark:bg-[#6B0F1A]/35'
+                                : 'border-[var(--border-subtle)] bg-[var(--bg-canvas)]/70 hover:border-[#6B0F1A]/60'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-bold uppercase text-[var(--text-muted)]">
+                                {perf} · {pot}
+                              </span>
+                              <span className="text-sm font-extrabold tabular-nums text-[#6B0F1A] dark:text-rose-200">
+                                {matches.length}
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+
+                <div className="lg:col-span-5 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5 flex flex-col justify-between">
+                  <div>
+                    <h2 className="text-sm font-bold">
+                      {selected9BoxCell
+                        ? `${selected9BoxCell.perf} · ${selected9BoxCell.pot}`
+                        : 'Engagement Sentiment (eNPS)'}
+                    </h2>
+                    <p className="text-[11px] text-[var(--text-muted)]">Q4 Pulse Distribution</p>
+                  </div>
+                  {selected9BoxCell ? (
+                    <div className="space-y-2 my-auto">
+                      {filteredEmployees
+                        .filter(
+                          (e) =>
+                            e.performance === selected9BoxCell.perf &&
+                            e.potential === selected9BoxCell.pot
+                        )
+                        .slice(0, 5)
+                        .map((emp) => (
+                          <button
+                            key={emp.id}
+                            type="button"
+                            onClick={() => setSelectedEmployee(emp)}
+                            className="w-full flex items-center justify-between rounded-xl border border-[var(--border-subtle)] p-2.5 hover:border-[#6B0F1A] text-left cursor-pointer"
+                          >
+                            <span className="text-xs font-bold">{emp.name}</span>
+                            <span className="text-[11px] text-[var(--text-muted)]">{emp.role}</span>
+                          </button>
+                        ))}
+                    </div>
+                  ) : (
+                    <div className="space-y-4 my-auto">
+                      <div className="text-4xl font-extrabold tabular-nums text-[#6B0F1A] dark:text-rose-200">
+                        +{kpis.eNps}
+                      </div>
+                      <div className="flex h-3.5 w-full overflow-hidden rounded-full">
+                        <div style={{ width: '68%' }} className="bg-[#6B0F1A]" />
+                        <div style={{ width: '20%' }} className="bg-[#D49BA4]" />
+                        <div style={{ width: '12%' }} className="bg-[#26060B]" />
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 text-xs tabular-nums">
+                        <div className="rounded-xl bg-[var(--bg-canvas)] p-2.5">
+                          <div className="text-[var(--text-muted)]">Promoters</div>
+                          <div className="font-bold text-[#6B0F1A]">68%</div>
+                        </div>
+                        <div className="rounded-xl bg-[var(--bg-canvas)] p-2.5">
+                          <div className="text-[var(--text-muted)]">Passives</div>
+                          <div className="font-bold">20%</div>
+                        </div>
+                        <div className="rounded-xl bg-[var(--bg-canvas)] p-2.5">
+                          <div className="text-[var(--text-muted)]">Detractors</div>
+                          <div className="font-bold">12%</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* DIRECTORY TAB */}
+            {activeTab === 'directory' && (
+              <div className="flex-1 min-h-0 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5 flex flex-col justify-between animate-enter overflow-hidden">
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <h2 className="text-sm font-bold">
+                      People Directory ({filteredEmployees.length})
+                    </h2>
+                    <p className="text-[11px] text-[var(--text-muted)]">
+                      Click any employee to open their 360° profile
+                    </p>
+                  </div>
+                </div>
+                <div className="flex-1 min-h-0 overflow-hidden">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-[var(--border-subtle)] text-[var(--text-muted)] text-left">
+                        <th className="pb-2 font-semibold">Employee</th>
+                        <th className="pb-2 font-semibold">Department</th>
+                        <th className="pb-2 font-semibold">Hub</th>
+                        <th className="pb-2 font-semibold text-right">Tenure</th>
+                        <th className="pb-2 font-semibold text-right">Salary</th>
+                        <th className="pb-2 font-semibold text-right">Compa-Ratio</th>
+                        <th className="pb-2 font-semibold text-right">Risk Score</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[var(--border-subtle)]">
+                      {filteredEmployees.slice(0, 9).map((emp) => (
+                        <tr
+                          key={emp.id}
+                          onClick={() => setSelectedEmployee(emp)}
+                          className="hover:bg-[var(--bg-surface-muted)]/50 cursor-pointer transition-colors"
+                        >
+                          <td className="py-2">
+                            <div className="flex items-center gap-2.5">
+                              <div className="h-7 w-7 rounded-full bg-[#6B0F1A] text-white flex items-center justify-center text-[10px] font-bold shrink-0">
+                                {emp.avatarInitials}
+                              </div>
+                              <div>
+                                <div className="font-bold">{emp.name}</div>
+                                <div className="text-[10px] text-[var(--text-muted)]">{emp.role}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-2 text-[var(--text-secondary)]">{emp.department}</td>
+                          <td className="py-2">{emp.location}</td>
+                          <td className="py-2 text-right tabular-nums">{emp.tenureYears}y</td>
+                          <td className="py-2 text-right tabular-nums font-semibold">
+                            ${emp.salary.toLocaleString()}
+                          </td>
+                          <td className="py-2 text-right tabular-nums">{emp.compaRatio.toFixed(2)}x</td>
+                          <td className="py-2 text-right tabular-nums font-bold text-[#6B0F1A]">
+                            {emp.flightRisk} ({emp.riskScore})
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </main>
+        </div>
+      </div>
+
+      {/* 360° Employee Profile Drawer */}
+      <EmployeeDrawer
+        employee={selectedEmployee}
+        onClose={() => setSelectedEmployee(null)}
+        onActionToast={showToast}
+      />
+
+      {/* Toast Notification */}
+      {toast && (
+        <div className="fixed bottom-5 right-5 z-50 flex items-center gap-2 rounded-full bg-[#26060B] text-white px-4 py-2 text-xs font-semibold shadow-xl animate-enter">
+          <CheckCircle2 className="h-3.5 w-3.5 text-rose-300" />
+          <span>{toast}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface KpiCardProps {
+  title: string;
+  value: string;
+  delta: string;
+  positive?: boolean;
+  icon: React.ReactNode;
+  sparkData: number[];
+  sparkColor?: string;
+}
+
+const KpiCard: React.FC<KpiCardProps> = ({
+  title,
+  value,
+  delta,
+  positive = true,
+  icon,
+  sparkData,
+  sparkColor = '#6B0F1A',
+}) => (
+  <div className="rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 py-3 shadow-xs hover:border-[#851826]/50 transition">
+    <div className="flex items-center justify-between mb-1">
+      <span className="text-[11px] font-semibold text-[var(--text-muted)]">{title}</span>
+      <div className="h-7 w-7 rounded-full bg-[var(--maroon-100)] dark:bg-[#6B0F1A]/30 flex items-center justify-center">
+        {icon}
+      </div>
+    </div>
+    <div className="flex items-end justify-between gap-2">
+      <div>
+        <div className="text-xl sm:text-2xl font-extrabold tracking-tight tabular-nums leading-none">
+          {value}
+        </div>
+        <div className="mt-1 flex items-center gap-1 text-[11px]">
+          <span
+            className={`inline-flex items-center gap-0.5 font-bold ${
+              positive ? 'text-emerald-600 dark:text-emerald-400' : 'text-[#B83B5E]'
+            }`}
+          >
+            {positive ? (
+              <ArrowUpRight className="h-3 w-3" />
+            ) : (
+              <ArrowDownRight className="h-3 w-3" />
+            )}
+            {delta}
+          </span>
+        </div>
+      </div>
+      <Sparkline data={sparkData} color={sparkColor} height={28} />
+    </div>
+  </div>
+);
+
+export default App;
