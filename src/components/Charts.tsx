@@ -57,20 +57,24 @@ export const HeadcountTrendChart: React.FC<{
 
   const width = 680;
   const height = 165;
-  const padL = 36;
-  const padR = 14;
+  const padL = 42;
+  const padR = 16;
   const padT = 10;
-  const padB = 22;
+  const padB = 24;
   const chartW = width - padL - padR;
   const chartH = height - padT - padB;
+  const xInset = 18;
 
-  const minHC = Math.floor(Math.min(...scaled.map((d) => d.headcount)) * 0.94);
-  const maxHC = Math.ceil(Math.max(...scaled.map((d) => d.headcount)) * 1.03);
+  const rawMin = Math.floor(Math.min(...scaled.map((d) => d.headcount)) * 0.94);
+  const rawMax = Math.ceil(Math.max(...scaled.map((d) => d.headcount)) * 1.03);
+  const minHC = Math.floor(rawMin / 10) * 10;
+  const maxHC = Math.ceil(rawMax / 10) * 10;
   const hcRange = maxHC - minHC || 1;
 
   const maxFlow = Math.max(...scaled.map((d) => Math.max(d.hires, d.exits)), 10);
 
-  const getX = (i: number) => padL + (i / (scaled.length - 1)) * chartW;
+  const getX = (i: number) =>
+    padL + xInset + (i / (scaled.length - 1)) * (chartW - xInset * 2);
   const getY = (val: number) => padT + chartH - ((val - minHC) / hcRange) * chartH;
 
   const linePoints = scaled.map((d, i) => `${getX(i)},${getY(d.headcount)}`);
@@ -98,31 +102,69 @@ export const HeadcountTrendChart: React.FC<{
           </linearGradient>
         </defs>
 
-        {/* Grid lines */}
+        {/* Subtle chart plot frame & solid X/Y axis lines */}
+        <rect
+          x={padL}
+          y={padT}
+          width={chartW}
+          height={chartH}
+          fill="none"
+          stroke="var(--border-subtle)"
+          strokeWidth="1"
+        />
+
+        {/* Grid lines & Y-axis ticks */}
         {yTicks.map((tick, idx) => {
           const y = getY(tick);
           return (
             <g key={idx}>
+              {idx > 0 && idx < yTicks.length - 1 && (
+                <line
+                  x1={padL}
+                  y1={y}
+                  x2={width - padR}
+                  y2={y}
+                  stroke="var(--border-subtle)"
+                  strokeDasharray="3 4"
+                />
+              )}
               <line
-                x1={padL}
+                x1={padL - 4}
                 y1={y}
-                x2={width - padR}
+                x2={padL}
                 y2={y}
-                stroke="currentColor"
-                className="text-[var(--border-subtle)]"
-                strokeDasharray="3 4"
+                stroke="var(--border-strong)"
+                strokeWidth="1.25"
               />
               <text
                 x={padL - 8}
-                y={y + 4}
+                y={y + 3.5}
                 textAnchor="end"
-                className="fill-[var(--text-muted)] text-[10px] tabular-nums"
+                className="fill-[var(--text-muted)] text-[10px] tabular-nums font-medium"
               >
                 {tick}
               </text>
             </g>
           );
         })}
+
+        {/* Solid Y-axis spine and X-axis baseline */}
+        <line
+          x1={padL}
+          y1={padT}
+          x2={padL}
+          y2={padT + chartH}
+          stroke="var(--border-strong)"
+          strokeWidth="1.5"
+        />
+        <line
+          x1={padL}
+          y1={padT + chartH}
+          x2={width - padR}
+          y2={padT + chartH}
+          stroke="var(--border-strong)"
+          strokeWidth="1.5"
+        />
 
         {/* Hires & Exits subtle background bars */}
         {scaled.map((d, i) => {
@@ -203,9 +245,17 @@ export const HeadcountTrendChart: React.FC<{
                 strokeWidth="2"
                 className="transition-all duration-150"
               />
+              <line
+                x1={cx}
+                y1={padT + chartH}
+                x2={cx}
+                y2={padT + chartH + 4}
+                stroke="var(--border-strong)"
+                strokeWidth="1.25"
+              />
               <text
                 x={cx}
-                y={height - 10}
+                y={height - 7}
                 textAnchor="middle"
                 className={`text-[10.5px] font-medium ${
                   isHovered ? 'fill-[#6B0F1A] font-bold' : 'fill-[var(--text-muted)]'
