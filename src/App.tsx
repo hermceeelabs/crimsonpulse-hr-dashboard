@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
+import { toPng, toSvg } from 'html-to-image';
 import {
   Users,
   UserMinus,
@@ -11,6 +12,7 @@ import {
   Award,
   Search,
   Download,
+  Camera,
   Moon,
   Sun,
   ArrowUpRight,
@@ -73,6 +75,9 @@ export function App() {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [aiPrompt, setAiPrompt] = useState('');
+  const [snapshotMenuOpen, setSnapshotMenuOpen] = useState(false);
+  const [isCapturing, setIsCapturing] = useState(false);
+  const dashboardRef = useRef<HTMLDivElement>(null);
   const [selected9BoxCell, setSelected9BoxCell] = useState<{
     perf: Employee['performance'];
     pot: Employee['potential'];
@@ -209,10 +214,62 @@ export function App() {
     setAiPrompt('');
   };
 
+  const captureNode = async (tabId: NavTab, format: 'png' | 'svg') => {
+    const node = dashboardRef.current;
+    if (!node) return;
+    const options = {
+      width: 1920,
+      height: 1080,
+      canvasWidth: 1920,
+      canvasHeight: 1080,
+      pixelRatio: 1,
+      style: {
+        width: '1920px',
+        height: '1080px',
+      },
+      filter: (el: HTMLElement) => el?.dataset?.snapshotIgnore !== 'true',
+    };
+    const dataUrl = format === 'png' ? await toPng(node, options) : await toSvg(node, options);
+    const link = document.createElement('a');
+    link.download = `crimsonpulse-${tabId}-1920x1080.${format}`;
+    link.href = dataUrl;
+    link.click();
+  };
+
+  const handleSnapshot = async (format: 'png' | 'svg', allPages: boolean) => {
+    setSnapshotMenuOpen(false);
+    setIsCapturing(true);
+    const originalTab = activeTab;
+
+    try {
+      if (!allPages) {
+        await new Promise((r) => setTimeout(r, 120));
+        await captureNode(activeTab, format);
+        showToast(`Saved ${activeTab} (${format.toUpperCase()} · 1920×1080)`);
+      } else {
+        for (const item of RAIL_ITEMS) {
+          setActiveTab(item.id);
+          await new Promise((r) => setTimeout(r, 260));
+          await captureNode(item.id, format);
+        }
+        setActiveTab(originalTab);
+        showToast(`Exported all ${RAIL_ITEMS.length} pages (${format.toUpperCase()} · 1920×1080)`);
+      }
+    } catch {
+      setActiveTab(originalTab);
+      showToast('Snapshot failed — please try again');
+    } finally {
+      setIsCapturing(false);
+    }
+  };
+
   return (
     <div className={darkOxblood ? 'dark-oxblood' : ''}>
       {/* Single-screen locked viewport: zero scroll on left rail & zero scroll on right canvas */}
-      <div className="h-screen w-screen overflow-hidden flex bg-[var(--bg-canvas)] text-[var(--text-primary)] p-2.5 sm:p-3.5 gap-3">
+      <div
+        ref={dashboardRef}
+        className="h-screen w-screen overflow-hidden flex bg-[var(--bg-canvas)] text-[var(--text-primary)] p-2.5 sm:p-3.5 gap-3"
+      >
         {/* Slim Icon-Only Left Sidebar Rail (matching reference image style) */}
         <aside className="relative z-30 w-16 shrink-0 h-full flex flex-col items-center justify-between py-4 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-xs overflow-visible">
           {/* Top Brand Mark */}
@@ -350,6 +407,55 @@ export function App() {
                     {e.avatarInitials}
                   </button>
                 ))}
+              </div>
+
+              <div className="relative" data-snapshot-ignore="true">
+                <button
+                  type="button"
+                  disabled={isCapturing}
+                  onClick={() => setSnapshotMenuOpen((o) => !o)}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-[#6B0F1A] hover:bg-[#450912] text-white px-3.5 py-1.5 text-xs font-semibold transition cursor-pointer disabled:opacity-60"
+                >
+                  <Camera className="h-3.5 w-3.5" />
+                  <span>{isCapturing ? 'Capturing...' : 'Snapshot'}</span>
+                </button>
+
+                {snapshotMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-60 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-1.5 shadow-xl z-50 text-xs">
+                    <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                      Full HD · 1920 × 1080
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleSnapshot('png', false)}
+                      className="w-full text-left rounded-xl px-3 py-2 hover:bg-[var(--bg-surface-muted)] font-medium cursor-pointer"
+                    >
+                      Current Page (PNG)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSnapshot('svg', false)}
+                      className="w-full text-left rounded-xl px-3 py-2 hover:bg-[var(--bg-surface-muted)] font-medium cursor-pointer"
+                    >
+                      Current Page (SVG)
+                    </button>
+                    <div className="my-1 border-t border-[var(--border-subtle)]" />
+                    <button
+                      type="button"
+                      onClick={() => handleSnapshot('png', true)}
+                      className="w-full text-left rounded-xl px-3 py-2 hover:bg-[var(--bg-surface-muted)] font-bold text-[#6B0F1A] dark:text-rose-200 cursor-pointer"
+                    >
+                      All 6 Pages (PNG)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSnapshot('svg', true)}
+                      className="w-full text-left rounded-xl px-3 py-2 hover:bg-[var(--bg-surface-muted)] font-bold text-[#6B0F1A] dark:text-rose-200 cursor-pointer"
+                    >
+                      All 6 Pages (SVG)
+                    </button>
+                  </div>
+                )}
               </div>
 
               <button
