@@ -198,7 +198,7 @@ export const HeadcountTrendChart: React.FC<{
                 cx={cx}
                 cy={cy}
                 r={isHovered ? 5.5 : 3.2}
-                fill={isHovered ? '#6B0F1A' : '#FFFFFF'}
+                fill={isHovered ? '#6B0F1A' : 'var(--bg-surface)'}
                 stroke="#6B0F1A"
                 strokeWidth="2"
                 className="transition-all duration-150"
