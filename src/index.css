@@ -5,14 +5,14 @@
     --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
     --font-serif: 'Instrument Serif', Georgia, serif;
 
-    /* Maroon & Warm Cream Editorial Palette (Light) */
-    --bg-canvas: #f3eadc;
-    --bg-surface: #fbf7f0;
-    --bg-surface-muted: #ede1d1;
+    /* Maroon & Rich Cream Editorial Palette (Light) */
+    --bg-canvas: #e9dcc9;
+    --bg-surface: #f7efe2;
+    --bg-surface-muted: #e2d2bc;
     --bg-sidebar: #26060b;
     --bg-sidebar-hover: #380b12;
-    --border-subtle: #e4d4c2;
-    --border-strong: #cfb8a1;
+    --border-subtle: #d5c1a8;
+    --border-strong: #bfa587;
 
     --text-primary: #1f0e12;
     --text-secondary: #684c52;
