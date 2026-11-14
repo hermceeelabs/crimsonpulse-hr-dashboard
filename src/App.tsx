@@ -218,23 +218,44 @@ export function App() {
   const captureNode = async (tabId: NavTab, format: 'png' | 'svg') => {
     const node = dashboardRef.current;
     if (!node) return;
-    const options = {
-      width: 1920,
-      height: 1080,
-      canvasWidth: 1920,
-      canvasHeight: 1080,
-      pixelRatio: 1,
-      style: {
-        width: '1920px',
-        height: '1080px',
-      },
-      filter: (el: HTMLElement) => el?.dataset?.snapshotIgnore !== 'true',
+
+    const prevStyle = {
+      width: node.style.width,
+      height: node.style.height,
+      position: node.style.position,
+      top: node.style.top,
+      left: node.style.left,
     };
-    const dataUrl = format === 'png' ? await toPng(node, options) : await toSvg(node, options);
-    const link = document.createElement('a');
-    link.download = `crimsonpulse-${tabId}-1920x1080.${format}`;
-    link.href = dataUrl;
-    link.click();
+
+    try {
+      node.style.position = 'fixed';
+      node.style.top = '0';
+      node.style.left = '0';
+      node.style.width = '1920px';
+      node.style.height = '1080px';
+
+      await new Promise((r) => setTimeout(r, 120));
+
+      const options = {
+        width: 1920,
+        height: 1080,
+        canvasWidth: 1920,
+        canvasHeight: 1080,
+        pixelRatio: 1,
+        filter: (el: HTMLElement) => el?.dataset?.snapshotIgnore !== 'true',
+      };
+      const dataUrl = format === 'png' ? await toPng(node, options) : await toSvg(node, options);
+      const link = document.createElement('a');
+      link.download = `crimsonpulse-${tabId}-1920x1080.${format}`;
+      link.href = dataUrl;
+      link.click();
+    } finally {
+      node.style.width = prevStyle.width;
+      node.style.height = prevStyle.height;
+      node.style.position = prevStyle.position;
+      node.style.top = prevStyle.top;
+      node.style.left = prevStyle.left;
+    }
   };
 
   const handleSnapshot = async (format: 'png' | 'svg', allPages: boolean) => {
