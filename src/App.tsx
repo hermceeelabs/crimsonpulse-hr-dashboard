@@ -19,8 +19,6 @@ import {
   ArrowDownRight,
   Settings,
   Bell,
-  Send,
-  Sparkles,
   CheckCircle2,
   BarChart3,
 } from 'lucide-react';
@@ -46,6 +44,15 @@ import {
   AttritionDonutChart,
 } from './components/Charts';
 import { EmployeeDrawer } from './components/EmployeeDrawer';
+import { InsightsStack, InsightsStrip } from './components/InsightsPanel';
+import {
+  generateOverviewInsights,
+  generateTalentInsights,
+  generateRetentionInsights,
+  generateCompInsights,
+  generatePerformanceInsights,
+  generateDirectorySummary,
+} from './utils/insightsEngine';
 
 type NavTab =
   | 'overview'
@@ -74,7 +81,6 @@ export function App() {
   const [darkOxblood, setDarkOxblood] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const [aiPrompt, setAiPrompt] = useState('');
   const [snapshotMenuOpen, setSnapshotMenuOpen] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
   const [dirPage, setDirPage] = useState(1);
@@ -180,6 +186,26 @@ export function App() {
     });
   }, [selectedDept, selectedLocation]);
 
+  const insightCtx = useMemo(
+    () => ({
+      departments: filteredDepts,
+      employees: filteredEmployees,
+      requisitions: filteredReqs,
+      selectedDept,
+      eNps: kpis.eNps,
+      attritionRate: kpis.attritionRate,
+      avgTimeToFill: kpis.avgTimeToFill,
+    }),
+    [filteredDepts, filteredEmployees, filteredReqs, selectedDept, kpis]
+  );
+
+  const overviewInsights = useMemo(() => generateOverviewInsights(insightCtx), [insightCtx]);
+  const talentInsights = useMemo(() => generateTalentInsights(insightCtx), [insightCtx]);
+  const retentionInsights = useMemo(() => generateRetentionInsights(insightCtx), [insightCtx]);
+  const compInsights = useMemo(() => generateCompInsights(insightCtx), [insightCtx]);
+  const perfInsights = useMemo(() => generatePerformanceInsights(insightCtx), [insightCtx]);
+  const dirSummary = useMemo(() => generateDirectorySummary(insightCtx), [insightCtx]);
+
   const handleExportCSV = () => {
     const headers = ['ID', 'Name', 'Role', 'Department', 'Location', 'Salary', 'CompaRatio', 'Risk'];
     const rows = filteredEmployees.map((e) => [
@@ -201,18 +227,6 @@ export function App() {
     link.click();
     URL.revokeObjectURL(url);
     showToast(`Exported ${filteredEmployees.length} records`);
-  };
-
-  const handleAiSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!aiPrompt.trim()) return;
-    const q = aiPrompt.toLowerCase();
-    if (q.includes('risk') || q.includes('attrition')) setActiveTab('retention');
-    else if (q.includes('pay') || q.includes('comp') || q.includes('salary')) setActiveTab('compensation');
-    else if (q.includes('hire') || q.includes('talent') || q.includes('funnel')) setActiveTab('talent');
-    else if (q.includes('9') || q.includes('perf')) setActiveTab('performance');
-    else showToast(`Insight ready: "${aiPrompt}"`);
-    setAiPrompt('');
   };
 
   const captureNode = async (tabId: NavTab, format: 'png' | 'svg') => {
@@ -680,76 +694,21 @@ export function App() {
                     </div>
                   </div>
 
-                  {/* Card 3: HR Copilot Card */}
-                  <div className="lg:col-span-4 min-h-0 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-5 py-3.5 shadow-xs flex flex-col justify-between overflow-hidden">
-                    <div className="flex flex-col items-center text-center gap-1">
-                      <div
-                        className="h-9 w-9 rounded-full flex items-center justify-center shadow-md"
-                        style={{
-                          background:
-                            'radial-gradient(circle at 30% 30%, #F0CCD1 0%, #B83B5E 45%, #450912 100%)',
-                        }}
-                      >
-                        <Sparkles className="h-4 w-4 text-white" />
-                      </div>
-                      <h2 className="text-xs font-bold leading-snug">
-                        Welcome, Nadia ·{' '}
-                        <span className="font-medium text-[var(--text-secondary)]">
-                          What HR insight do you need?
-                        </span>
-                      </h2>
-                    </div>
-
-                    <div className="flex flex-wrap items-center justify-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => setActiveTab('retention')}
-                        className="rounded-full border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-2.5 py-1 text-[10px] font-semibold hover:border-[#6B0F1A] cursor-pointer"
-                      >
-                        Flight risk
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setActiveTab('compensation')}
-                        className="rounded-full border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-2.5 py-1 text-[10px] font-semibold hover:border-[#6B0F1A] cursor-pointer"
-                      >
-                        Pay parity
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleExportCSV}
-                        className="rounded-full border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-2.5 py-1 text-[10px] font-semibold hover:border-[#6B0F1A] cursor-pointer"
-                      >
-                        Get reports
-                      </button>
-                    </div>
-
-                    <form
-                      onSubmit={handleAiSubmit}
-                      className="flex items-center gap-2 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-3 py-1"
-                    >
-                      <input
-                        type="text"
-                        value={aiPrompt}
-                        onChange={(e) => setAiPrompt(e.target.value)}
-                        placeholder="Ask anything about your workforce..."
-                        className="flex-1 bg-transparent text-xs focus:outline-none"
-                      />
-                      <button
-                        type="submit"
-                        className="h-6 w-6 rounded-full bg-[#6B0F1A] text-white flex items-center justify-center hover:bg-[#450912] cursor-pointer"
-                      >
-                        <Send className="h-3 w-3" />
-                      </button>
-                    </form>
+                  {/* Card 3: Rule-Based Business Insights */}
+                  <div className="lg:col-span-4 min-h-0 flex flex-col">
+                    <InsightsStack
+                      title="Executive Business Insights"
+                      subtitle="Rule-based signals for active filters"
+                      insights={overviewInsights}
+                    />
                   </div>
                 </section>
               </div>
             )}
 
-            {/* TALENT & HIRING TAB (single-screen fit) */}
+            {/* TALENT & HIRING TAB (single-screen fit with insights) */}
             {activeTab === 'talent' && (
-              <div className="flex-1 min-h-0 grid grid-rows-[auto_1fr] gap-3 animate-enter">
+              <div className="flex-1 min-h-0 grid grid-rows-[auto_minmax(0,1fr)_auto] gap-3 animate-enter">
                 <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                   <KpiCard
                     title="Open Requisitions"
@@ -786,7 +745,7 @@ export function App() {
                 </section>
 
                 <div className="min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-3">
-                  <div className="lg:col-span-5 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5 flex flex-col justify-between">
+                  <div className="lg:col-span-5 min-h-0 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-5 py-3.5 flex flex-col justify-between overflow-hidden">
                     <div>
                       <h2 className="text-sm font-bold">Source Quality & Velocity</h2>
                       <p className="text-[11px] text-[var(--text-muted)]">Channel performance</p>
@@ -803,10 +762,10 @@ export function App() {
                       <tbody className="divide-y divide-[var(--border-subtle)] tabular-nums">
                         {HIRING_SOURCES.map((src) => (
                           <tr key={src.source}>
-                            <td className="py-3 font-semibold">{src.source}</td>
-                            <td className="py-3 text-right font-bold">{src.hires}</td>
-                            <td className="py-3 text-right">{src.acceptanceRate}%</td>
-                            <td className="py-3 text-right font-bold text-[#6B0F1A]">
+                            <td className="py-2 font-semibold">{src.source}</td>
+                            <td className="py-2 text-right font-bold">{src.hires}</td>
+                            <td className="py-2 text-right">{src.acceptanceRate}%</td>
+                            <td className="py-2 text-right font-bold text-[#6B0F1A]">
                               {src.qualityScore}
                             </td>
                           </tr>
@@ -815,7 +774,7 @@ export function App() {
                     </table>
                   </div>
 
-                  <div className="lg:col-span-7 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5 flex flex-col justify-between">
+                  <div className="lg:col-span-7 min-h-0 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-5 py-3.5 flex flex-col justify-between overflow-hidden">
                     <div>
                       <h2 className="text-sm font-bold">Priority Open Requisitions</h2>
                       <p className="text-[11px] text-[var(--text-muted)]">
@@ -835,11 +794,11 @@ export function App() {
                       <tbody className="divide-y divide-[var(--border-subtle)]">
                         {filteredReqs.slice(0, 5).map((req) => (
                           <tr key={req.id}>
-                            <td className="py-2.5 font-semibold">{req.title}</td>
-                            <td className="py-2.5 text-[var(--text-secondary)]">{req.department}</td>
-                            <td className="py-2.5">{req.stage}</td>
-                            <td className="py-2.5 text-right tabular-nums">{req.daysOpen}d</td>
-                            <td className="py-2.5 text-right font-bold text-[#6B0F1A]">
+                            <td className="py-2 font-semibold">{req.title}</td>
+                            <td className="py-2 text-[var(--text-secondary)]">{req.department}</td>
+                            <td className="py-2">{req.stage}</td>
+                            <td className="py-2 text-right tabular-nums">{req.daysOpen}d</td>
+                            <td className="py-2 text-right font-bold text-[#6B0F1A]">
                               {req.priority}
                             </td>
                           </tr>
@@ -848,55 +807,61 @@ export function App() {
                     </table>
                   </div>
                 </div>
+
+                <InsightsStrip title="Hiring & Pipeline Insights" insights={talentInsights} />
               </div>
             )}
 
             {/* RETENTION & RISK TAB */}
             {activeTab === 'retention' && (
-              <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-3 animate-enter">
-                <div className="lg:col-span-6 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5 flex flex-col justify-between">
-                  <div>
-                    <h2 className="text-sm font-bold">Primary Exit Drivers (LTM)</h2>
-                    <p className="text-[11px] text-[var(--text-muted)]">
-                      Hover segments to inspect departure reasons
-                    </p>
+              <div className="flex-1 min-h-0 grid grid-rows-[minmax(0,1fr)_auto] gap-3 animate-enter">
+                <div className="min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-3">
+                  <div className="lg:col-span-6 min-h-0 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5 flex flex-col justify-between overflow-hidden">
+                    <div>
+                      <h2 className="text-sm font-bold">Primary Exit Drivers (LTM)</h2>
+                      <p className="text-[11px] text-[var(--text-muted)]">
+                        Hover segments to inspect departure reasons
+                      </p>
+                    </div>
+                    <div className="my-auto">
+                      <AttritionDonutChart items={EXIT_REASONS} />
+                    </div>
                   </div>
-                  <div className="my-auto">
-                    <AttritionDonutChart items={EXIT_REASONS} />
+
+                  <div className="lg:col-span-6 min-h-0 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5 flex flex-col justify-between overflow-hidden">
+                    <div>
+                      <h2 className="text-sm font-bold">Tenure Cohort Risk Distribution</h2>
+                      <p className="text-[11px] text-[var(--text-muted)]">
+                        Low / Medium / High flight risk split
+                      </p>
+                    </div>
+                    <div className="space-y-3.5 my-auto">
+                      {TENURE_COHORT_RISK.map((row) => (
+                        <div key={row.cohort} className="space-y-1">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-semibold">{row.cohort}</span>
+                            <span className="tabular-nums text-[var(--text-muted)]">
+                              {row.count} staff · <strong className="text-[#6B0F1A]">{row.high}% high</strong>
+                            </span>
+                          </div>
+                          <div className="flex h-3 w-full overflow-hidden rounded-full bg-[var(--bg-surface-muted)]">
+                            <div style={{ width: `${row.low}%` }} className="bg-[#EAD2D6] dark:bg-[#4A1C24]" />
+                            <div style={{ width: `${row.medium}%` }} className="bg-[#B83B5E]" />
+                            <div style={{ width: `${row.high}%` }} className="bg-[#6B0F1A]" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
-                <div className="lg:col-span-6 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5 flex flex-col justify-between">
-                  <div>
-                    <h2 className="text-sm font-bold">Tenure Cohort Risk Distribution</h2>
-                    <p className="text-[11px] text-[var(--text-muted)]">
-                      Low / Medium / High flight risk split
-                    </p>
-                  </div>
-                  <div className="space-y-4 my-auto">
-                    {TENURE_COHORT_RISK.map((row) => (
-                      <div key={row.cohort} className="space-y-1">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="font-semibold">{row.cohort}</span>
-                          <span className="tabular-nums text-[var(--text-muted)]">
-                            {row.count} staff · <strong className="text-[#6B0F1A]">{row.high}% high</strong>
-                          </span>
-                        </div>
-                        <div className="flex h-3 w-full overflow-hidden rounded-full bg-[var(--bg-surface-muted)]">
-                          <div style={{ width: `${row.low}%` }} className="bg-[#EAD2D6] dark:bg-[#4A1C24]" />
-                          <div style={{ width: `${row.medium}%` }} className="bg-[#B83B5E]" />
-                          <div style={{ width: `${row.high}%` }} className="bg-[#6B0F1A]" />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <InsightsStrip title="Retention & Attrition Insights" insights={retentionInsights} />
               </div>
             )}
 
             {/* COMPENSATION & EQUITY TAB */}
             {activeTab === 'compensation' && (
-              <div className="flex-1 min-h-0 grid grid-rows-[auto_1fr] gap-3 animate-enter">
+              <div className="flex-1 min-h-0 grid grid-rows-[auto_minmax(0,1fr)] gap-3 animate-enter">
                 <section className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <KpiCard
                     title="Annualized Base Payroll"
@@ -924,53 +889,63 @@ export function App() {
                   />
                 </section>
 
-                <div className="rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5 flex flex-col justify-between">
-                  <div>
-                    <h2 className="text-sm font-bold">Pay Equity by Career Level</h2>
-                    <p className="text-[11px] text-[var(--text-muted)]">
-                      Male vs. Female average base salary compared to market band
-                    </p>
+                <div className="min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-3">
+                  <div className="lg:col-span-7 min-h-0 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5 flex flex-col justify-between overflow-hidden">
+                    <div>
+                      <h2 className="text-sm font-bold">Pay Equity by Career Level</h2>
+                      <p className="text-[11px] text-[var(--text-muted)]">
+                        Male vs. Female average base salary compared to market band
+                      </p>
+                    </div>
+                    <div className="space-y-3 my-auto">
+                      {PAY_EQUITY_BY_LEVEL.map((lvl) => {
+                        const maxVal = 220000;
+                        return (
+                          <div key={lvl.level} className="space-y-1">
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="font-bold">{lvl.level}</span>
+                              <span className="tabular-nums text-[var(--text-muted)]">
+                                Target: ${lvl.targetBand.toLocaleString()}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <div className="flex items-center gap-2">
+                                <span className="w-12 text-[11px] text-[var(--text-muted)]">Male</span>
+                                <div className="flex-1 h-2 rounded-full bg-[var(--bg-surface-muted)] overflow-hidden">
+                                  <div
+                                    className="h-full rounded-full bg-[#6B0F1A]"
+                                    style={{ width: `${(lvl.maleAvg / maxVal) * 100}%` }}
+                                  />
+                                </div>
+                                <span className="w-16 text-right text-xs font-semibold tabular-nums">
+                                  ${lvl.maleAvg.toLocaleString()}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="w-12 text-[11px] text-[var(--text-muted)]">Female</span>
+                                <div className="flex-1 h-2 rounded-full bg-[var(--bg-surface-muted)] overflow-hidden">
+                                  <div
+                                    className="h-full rounded-full bg-[#B83B5E]"
+                                    style={{ width: `${(lvl.femaleAvg / maxVal) * 100}%` }}
+                                  />
+                                </div>
+                                <span className="w-16 text-right text-xs font-semibold tabular-nums">
+                                  ${lvl.femaleAvg.toLocaleString()}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                  <div className="space-y-3 my-auto">
-                    {PAY_EQUITY_BY_LEVEL.map((lvl) => {
-                      const maxVal = 220000;
-                      return (
-                        <div key={lvl.level} className="space-y-1">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="font-bold">{lvl.level}</span>
-                            <span className="tabular-nums text-[var(--text-muted)]">
-                              Target: ${lvl.targetBand.toLocaleString()}
-                            </span>
-                          </div>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div className="flex items-center gap-2">
-                              <span className="w-12 text-[11px] text-[var(--text-muted)]">Male</span>
-                              <div className="flex-1 h-2 rounded-full bg-[var(--bg-surface-muted)] overflow-hidden">
-                                <div
-                                  className="h-full rounded-full bg-[#6B0F1A]"
-                                  style={{ width: `${(lvl.maleAvg / maxVal) * 100}%` }}
-                                />
-                              </div>
-                              <span className="w-16 text-right text-xs font-semibold tabular-nums">
-                                ${lvl.maleAvg.toLocaleString()}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="w-12 text-[11px] text-[var(--text-muted)]">Female</span>
-                              <div className="flex-1 h-2 rounded-full bg-[var(--bg-surface-muted)] overflow-hidden">
-                                <div
-                                  className="h-full rounded-full bg-[#B83B5E]"
-                                  style={{ width: `${(lvl.femaleAvg / maxVal) * 100}%` }}
-                                />
-                              </div>
-                              <span className="w-16 text-right text-xs font-semibold tabular-nums">
-                                ${lvl.femaleAvg.toLocaleString()}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
+
+                  <div className="lg:col-span-5 min-h-0 flex flex-col">
+                    <InsightsStack
+                      title="Compensation & Equity Insights"
+                      subtitle="Band alignment & pay parity rules"
+                      insights={compInsights}
+                    />
                   </div>
                 </div>
               </div>
@@ -978,123 +953,127 @@ export function App() {
 
             {/* PERFORMANCE & 9-BOX TAB */}
             {activeTab === 'performance' && (
-              <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-3 animate-enter">
-                <div className="lg:col-span-7 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5 flex flex-col justify-between">
-                  <div className="flex items-center justify-between">
+              <div className="flex-1 min-h-0 grid grid-rows-[minmax(0,1fr)_auto] gap-3 animate-enter">
+                <div className="min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-3">
+                  <div className="lg:col-span-7 min-h-0 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5 flex flex-col justify-between overflow-hidden">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h2 className="text-sm font-bold">Interactive 9-Box Talent Matrix</h2>
+                        <p className="text-[11px] text-[var(--text-muted)]">
+                          Click any cell to inspect employees
+                        </p>
+                      </div>
+                      {selected9BoxCell && (
+                        <button
+                          type="button"
+                          onClick={() => setSelected9BoxCell(null)}
+                          className="text-xs font-semibold text-[#6B0F1A] hover:underline cursor-pointer"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2.5 my-auto">
+                      {(['High', 'Moderate', 'Core'] as const).map((pot) =>
+                        (['Developing', 'Strong', 'Exceeds'] as const).map((perf) => {
+                          const matches = filteredEmployees.filter(
+                            (e) => e.potential === pot && e.performance === perf
+                          );
+                          const isSelected =
+                            selected9BoxCell?.perf === perf && selected9BoxCell?.pot === pot;
+                          return (
+                            <button
+                              key={`${pot}-${perf}`}
+                              type="button"
+                              onClick={() => setSelected9BoxCell({ perf, pot })}
+                              className={`rounded-2xl p-3 text-left border transition cursor-pointer ${
+                                isSelected
+                                  ? 'border-[#6B0F1A] bg-[var(--maroon-100)] dark:bg-[#6B0F1A]/35'
+                                  : 'border-[var(--border-subtle)] bg-[var(--bg-canvas)]/70 hover:border-[#6B0F1A]/60'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="text-[10px] font-bold uppercase text-[var(--text-muted)]">
+                                  {perf} · {pot}
+                                </span>
+                                <span className="text-sm font-extrabold tabular-nums text-[#6B0F1A] dark:text-rose-200">
+                                  {matches.length}
+                                </span>
+                              </div>
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="lg:col-span-5 min-h-0 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5 flex flex-col justify-between overflow-hidden">
                     <div>
-                      <h2 className="text-sm font-bold">Interactive 9-Box Talent Matrix</h2>
-                      <p className="text-[11px] text-[var(--text-muted)]">
-                        Click any cell to inspect employees
-                      </p>
+                      <h2 className="text-sm font-bold">
+                        {selected9BoxCell
+                          ? `${selected9BoxCell.perf} · ${selected9BoxCell.pot}`
+                          : 'Engagement Sentiment (eNPS)'}
+                      </h2>
+                      <p className="text-[11px] text-[var(--text-muted)]">Q4 Pulse Distribution</p>
                     </div>
-                    {selected9BoxCell && (
-                      <button
-                        type="button"
-                        onClick={() => setSelected9BoxCell(null)}
-                        className="text-xs font-semibold text-[#6B0F1A] hover:underline cursor-pointer"
-                      >
-                        Clear
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-2.5 my-auto">
-                    {(['High', 'Moderate', 'Core'] as const).map((pot) =>
-                      (['Developing', 'Strong', 'Exceeds'] as const).map((perf) => {
-                        const matches = filteredEmployees.filter(
-                          (e) => e.potential === pot && e.performance === perf
-                        );
-                        const isSelected =
-                          selected9BoxCell?.perf === perf && selected9BoxCell?.pot === pot;
-                        return (
-                          <button
-                            key={`${pot}-${perf}`}
-                            type="button"
-                            onClick={() => setSelected9BoxCell({ perf, pot })}
-                            className={`rounded-2xl p-3 text-left border transition cursor-pointer ${
-                              isSelected
-                                ? 'border-[#6B0F1A] bg-[var(--maroon-100)] dark:bg-[#6B0F1A]/35'
-                                : 'border-[var(--border-subtle)] bg-[var(--bg-canvas)]/70 hover:border-[#6B0F1A]/60'
-                            }`}
-                          >
-                            <div className="flex items-center justify-between">
-                              <span className="text-[10px] font-bold uppercase text-[var(--text-muted)]">
-                                {perf} · {pot}
-                              </span>
-                              <span className="text-sm font-extrabold tabular-nums text-[#6B0F1A] dark:text-rose-200">
-                                {matches.length}
-                              </span>
-                            </div>
-                          </button>
-                        );
-                      })
+                    {selected9BoxCell ? (
+                      <div className="space-y-2 my-auto">
+                        {filteredEmployees
+                          .filter(
+                            (e) =>
+                              e.performance === selected9BoxCell.perf &&
+                              e.potential === selected9BoxCell.pot
+                          )
+                          .slice(0, 4)
+                          .map((emp) => (
+                            <button
+                              key={emp.id}
+                              type="button"
+                              onClick={() => setSelectedEmployee(emp)}
+                              className="w-full flex items-center justify-between rounded-xl border border-[var(--border-subtle)] p-2.5 hover:border-[#6B0F1A] text-left cursor-pointer"
+                            >
+                              <span className="text-xs font-bold">{emp.name}</span>
+                              <span className="text-[11px] text-[var(--text-muted)]">{emp.role}</span>
+                            </button>
+                          ))}
+                      </div>
+                    ) : (
+                      <div className="space-y-4 my-auto">
+                        <div className="text-4xl font-extrabold tabular-nums text-[#6B0F1A] dark:text-rose-200">
+                          +{kpis.eNps}
+                        </div>
+                        <div className="flex h-3.5 w-full overflow-hidden rounded-full">
+                          <div style={{ width: '68%' }} className="bg-[#6B0F1A]" />
+                          <div style={{ width: '20%' }} className="bg-[#D49BA4]" />
+                          <div style={{ width: '12%' }} className="bg-[#26060B]" />
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 text-xs tabular-nums">
+                          <div className="rounded-xl bg-[var(--bg-canvas)] p-2.5">
+                            <div className="text-[var(--text-muted)]">Promoters</div>
+                            <div className="font-bold text-[#6B0F1A]">68%</div>
+                          </div>
+                          <div className="rounded-xl bg-[var(--bg-canvas)] p-2.5">
+                            <div className="text-[var(--text-muted)]">Passives</div>
+                            <div className="font-bold">20%</div>
+                          </div>
+                          <div className="rounded-xl bg-[var(--bg-canvas)] p-2.5">
+                            <div className="text-[var(--text-muted)]">Detractors</div>
+                            <div className="font-bold">12%</div>
+                          </div>
+                        </div>
+                      </div>
                     )}
                   </div>
                 </div>
 
-                <div className="lg:col-span-5 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5 flex flex-col justify-between">
-                  <div>
-                    <h2 className="text-sm font-bold">
-                      {selected9BoxCell
-                        ? `${selected9BoxCell.perf} · ${selected9BoxCell.pot}`
-                        : 'Engagement Sentiment (eNPS)'}
-                    </h2>
-                    <p className="text-[11px] text-[var(--text-muted)]">Q4 Pulse Distribution</p>
-                  </div>
-                  {selected9BoxCell ? (
-                    <div className="space-y-2 my-auto">
-                      {filteredEmployees
-                        .filter(
-                          (e) =>
-                            e.performance === selected9BoxCell.perf &&
-                            e.potential === selected9BoxCell.pot
-                        )
-                        .slice(0, 5)
-                        .map((emp) => (
-                          <button
-                            key={emp.id}
-                            type="button"
-                            onClick={() => setSelectedEmployee(emp)}
-                            className="w-full flex items-center justify-between rounded-xl border border-[var(--border-subtle)] p-2.5 hover:border-[#6B0F1A] text-left cursor-pointer"
-                          >
-                            <span className="text-xs font-bold">{emp.name}</span>
-                            <span className="text-[11px] text-[var(--text-muted)]">{emp.role}</span>
-                          </button>
-                        ))}
-                    </div>
-                  ) : (
-                    <div className="space-y-4 my-auto">
-                      <div className="text-4xl font-extrabold tabular-nums text-[#6B0F1A] dark:text-rose-200">
-                        +{kpis.eNps}
-                      </div>
-                      <div className="flex h-3.5 w-full overflow-hidden rounded-full">
-                        <div style={{ width: '68%' }} className="bg-[#6B0F1A]" />
-                        <div style={{ width: '20%' }} className="bg-[#D49BA4]" />
-                        <div style={{ width: '12%' }} className="bg-[#26060B]" />
-                      </div>
-                      <div className="grid grid-cols-3 gap-2 text-xs tabular-nums">
-                        <div className="rounded-xl bg-[var(--bg-canvas)] p-2.5">
-                          <div className="text-[var(--text-muted)]">Promoters</div>
-                          <div className="font-bold text-[#6B0F1A]">68%</div>
-                        </div>
-                        <div className="rounded-xl bg-[var(--bg-canvas)] p-2.5">
-                          <div className="text-[var(--text-muted)]">Passives</div>
-                          <div className="font-bold">20%</div>
-                        </div>
-                        <div className="rounded-xl bg-[var(--bg-canvas)] p-2.5">
-                          <div className="text-[var(--text-muted)]">Detractors</div>
-                          <div className="font-bold">12%</div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                <InsightsStrip title="Performance & Succession Insights" insights={perfInsights} />
               </div>
             )}
 
             {/* DIRECTORY TAB */}
             {activeTab === 'directory' && (() => {
-              const pageSize = 9;
+              const pageSize = 8;
               const totalPages = Math.max(1, Math.ceil(filteredEmployees.length / pageSize));
               const safePage = Math.min(dirPage, totalPages);
               const pageRows = filteredEmployees.slice(
@@ -1102,83 +1081,113 @@ export function App() {
                 safePage * pageSize
               );
               return (
-              <div className="flex-1 min-h-0 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5 flex flex-col justify-between animate-enter overflow-hidden">
-                <div className="flex items-center justify-between mb-2">
-                  <div>
-                    <h2 className="text-sm font-bold">
-                      People Directory ({filteredEmployees.length})
-                    </h2>
-                    <p className="text-[11px] text-[var(--text-muted)]">
-                      Click any employee to open their 360° profile
-                    </p>
+              <div className="flex-1 min-h-0 flex flex-col gap-3 animate-enter overflow-hidden">
+                <div className="flex-1 min-h-0 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-5 py-4 flex flex-col justify-between overflow-hidden">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <h2 className="text-sm font-bold">
+                        People Directory ({filteredEmployees.length})
+                      </h2>
+                      <p className="text-[11px] text-[var(--text-muted)]">
+                        Click any employee to open their 360° profile
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="text-[11px] text-[var(--text-muted)] tabular-nums">
+                        Page {safePage} of {totalPages}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={safePage <= 1}
+                        onClick={() => setDirPage((p) => Math.max(1, p - 1))}
+                        className="rounded-full border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-2.5 py-1 font-semibold disabled:opacity-40 hover:border-[#6B0F1A] cursor-pointer"
+                      >
+                        Prev
+                      </button>
+                      <button
+                        type="button"
+                        disabled={safePage >= totalPages}
+                        onClick={() => setDirPage((p) => Math.min(totalPages, p + 1))}
+                        className="rounded-full border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-2.5 py-1 font-semibold disabled:opacity-40 hover:border-[#6B0F1A] cursor-pointer"
+                      >
+                        Next
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 text-xs">
-                    <span className="text-[11px] text-[var(--text-muted)] tabular-nums">
-                      Page {safePage} of {totalPages}
-                    </span>
-                    <button
-                      type="button"
-                      disabled={safePage <= 1}
-                      onClick={() => setDirPage((p) => Math.max(1, p - 1))}
-                      className="rounded-full border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-2.5 py-1 font-semibold disabled:opacity-40 hover:border-[#6B0F1A] cursor-pointer"
-                    >
-                      Prev
-                    </button>
-                    <button
-                      type="button"
-                      disabled={safePage >= totalPages}
-                      onClick={() => setDirPage((p) => Math.min(totalPages, p + 1))}
-                      className="rounded-full border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-2.5 py-1 font-semibold disabled:opacity-40 hover:border-[#6B0F1A] cursor-pointer"
-                    >
-                      Next
-                    </button>
+                  <div className="flex-1 min-h-0 overflow-hidden">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="border-b border-[var(--border-subtle)] text-[var(--text-muted)] text-left">
+                          <th className="pb-2 font-semibold">Employee</th>
+                          <th className="pb-2 font-semibold">Department</th>
+                          <th className="pb-2 font-semibold">Hub</th>
+                          <th className="pb-2 font-semibold text-right">Tenure</th>
+                          <th className="pb-2 font-semibold text-right">Salary</th>
+                          <th className="pb-2 font-semibold text-right">Compa-Ratio</th>
+                          <th className="pb-2 font-semibold text-right">Risk Score</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[var(--border-subtle)]">
+                        {pageRows.map((emp) => (
+                          <tr
+                            key={emp.id}
+                            onClick={() => setSelectedEmployee(emp)}
+                            className="hover:bg-[var(--bg-surface-muted)]/50 cursor-pointer transition-colors"
+                          >
+                            <td className="py-2">
+                              <div className="flex items-center gap-2.5">
+                                <div className="h-7 w-7 rounded-full bg-[#6B0F1A] text-white flex items-center justify-center text-[10px] font-bold shrink-0">
+                                  {emp.avatarInitials}
+                                </div>
+                                <div>
+                                  <div className="font-bold">{emp.name}</div>
+                                  <div className="text-[10px] text-[var(--text-muted)]">{emp.role}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-2 text-[var(--text-secondary)]">{emp.department}</td>
+                            <td className="py-2">{emp.location}</td>
+                            <td className="py-2 text-right tabular-nums">{emp.tenureYears}y</td>
+                            <td className="py-2 text-right tabular-nums font-semibold">
+                              ${emp.salary.toLocaleString()}
+                            </td>
+                            <td className="py-2 text-right tabular-nums">{emp.compaRatio.toFixed(2)}x</td>
+                            <td className="py-2 text-right tabular-nums font-bold text-[#6B0F1A]">
+                              {emp.flightRisk} ({emp.riskScore})
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
-                <div className="flex-1 min-h-0 overflow-hidden">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="border-b border-[var(--border-subtle)] text-[var(--text-muted)] text-left">
-                        <th className="pb-2 font-semibold">Employee</th>
-                        <th className="pb-2 font-semibold">Department</th>
-                        <th className="pb-2 font-semibold">Hub</th>
-                        <th className="pb-2 font-semibold text-right">Tenure</th>
-                        <th className="pb-2 font-semibold text-right">Salary</th>
-                        <th className="pb-2 font-semibold text-right">Compa-Ratio</th>
-                        <th className="pb-2 font-semibold text-right">Risk Score</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[var(--border-subtle)]">
-                      {pageRows.map((emp) => (
-                        <tr
-                          key={emp.id}
-                          onClick={() => setSelectedEmployee(emp)}
-                          className="hover:bg-[var(--bg-surface-muted)]/50 cursor-pointer transition-colors"
-                        >
-                          <td className="py-2">
-                            <div className="flex items-center gap-2.5">
-                              <div className="h-7 w-7 rounded-full bg-[#6B0F1A] text-white flex items-center justify-center text-[10px] font-bold shrink-0">
-                                {emp.avatarInitials}
-                              </div>
-                              <div>
-                                <div className="font-bold">{emp.name}</div>
-                                <div className="text-[10px] text-[var(--text-muted)]">{emp.role}</div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="py-2 text-[var(--text-secondary)]">{emp.department}</td>
-                          <td className="py-2">{emp.location}</td>
-                          <td className="py-2 text-right tabular-nums">{emp.tenureYears}y</td>
-                          <td className="py-2 text-right tabular-nums font-semibold">
-                            ${emp.salary.toLocaleString()}
-                          </td>
-                          <td className="py-2 text-right tabular-nums">{emp.compaRatio.toFixed(2)}x</td>
-                          <td className="py-2 text-right tabular-nums font-bold text-[#6B0F1A]">
-                            {emp.flightRisk} ({emp.riskScore})
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+
+                {/* Rule-Based Roster Summary Strip */}
+                <div className="shrink-0 grid grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 py-2.5 flex items-center justify-between">
+                    <span className="text-[11px] text-[var(--text-muted)] font-medium">Avg. Base Salary</span>
+                    <span className="text-sm font-extrabold tabular-nums">
+                      ${dirSummary.avgSalary.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 py-2.5 flex items-center justify-between">
+                    <span className="text-[11px] text-[var(--text-muted)] font-medium">Below 0.93x Band</span>
+                    <span className="text-sm font-extrabold tabular-nums text-[#6B0F1A]">
+                      {dirSummary.belowBandCount} staff
+                    </span>
+                  </div>
+                  <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 py-2.5 flex items-center justify-between">
+                    <span className="text-[11px] text-[var(--text-muted)] font-medium">High Flight Risk</span>
+                    <span className="text-sm font-extrabold tabular-nums text-[#6B0F1A]">
+                      {dirSummary.highRiskCount} staff
+                    </span>
+                  </div>
+                  <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 py-2.5 flex items-center justify-between">
+                    <span className="text-[11px] text-[var(--text-muted)] font-medium">Overdue Reviews</span>
+                    <span className="text-sm font-extrabold tabular-nums text-amber-700">
+                      {dirSummary.overdueCount} pending
+                    </span>
+                  </div>
                 </div>
               </div>
               );
