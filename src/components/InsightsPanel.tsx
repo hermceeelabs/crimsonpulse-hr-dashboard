@@ -70,15 +70,17 @@ export const InsightsStack: React.FC<{
   title?: string;
   subtitle?: string;
   insights: BusinessInsight[];
+  compact?: boolean;
 }> = ({
   title = 'Rule-Based Business Insights',
   subtitle = 'Live rules evaluated on current slice',
   insights,
+  compact = false,
 }) => (
-  <div className="min-h-0 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-5 py-3.5 shadow-xs flex flex-col justify-between overflow-hidden">
+  <div className="min-h-0 flex-1 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-5 py-3.5 shadow-xs flex flex-col justify-between overflow-hidden">
     <div className="shrink-0 mb-2">
       <h2 className="text-sm font-bold leading-tight">{title}</h2>
-      <p className="text-[11px] text-[var(--text-muted)]">{subtitle}</p>
+      {!compact && <p className="text-[11px] text-[var(--text-muted)]">{subtitle}</p>}
     </div>
     <div className="flex-1 min-h-0 flex flex-col justify-center gap-2">
       {insights.map((ins) => {
@@ -87,7 +89,10 @@ export const InsightsStack: React.FC<{
         return (
           <div
             key={ins.id}
-            className="relative rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-canvas)]/65 pl-3.5 pr-3 py-2 overflow-hidden"
+            title={ins.detail}
+            className={`relative rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-canvas)]/65 pl-3.5 pr-3 overflow-hidden ${
+              compact ? 'py-2' : 'py-2.5'
+            }`}
           >
             <div className={`absolute left-0 top-0 bottom-0 w-1 ${cfg.bar}`} />
             <div className="flex items-center justify-between gap-2">
@@ -99,12 +104,14 @@ export const InsightsStack: React.FC<{
                 {ins.metric}
               </span>
             </div>
-            <div className="text-[11px] font-bold text-[var(--text-primary)] mt-0.5 truncate">
+            <div className="text-[11.5px] font-bold text-[var(--text-primary)] mt-0.5 truncate">
               {ins.headline}
             </div>
-            <p className="text-[10.5px] text-[var(--text-secondary)] leading-snug line-clamp-2 mt-0.5">
-              {ins.detail}
-            </p>
+            {!compact && (
+              <p className="text-[11px] text-[var(--text-secondary)] leading-snug mt-0.5">
+                {ins.detail}
+              </p>
+            )}
           </div>
         );
       })}

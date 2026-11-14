@@ -698,8 +698,8 @@ export function App() {
                   <div className="lg:col-span-4 min-h-0 flex flex-col">
                     <InsightsStack
                       title="Executive Business Insights"
-                      subtitle="Rule-based signals for active filters"
                       insights={overviewInsights}
+                      compact
                     />
                   </div>
                 </section>
