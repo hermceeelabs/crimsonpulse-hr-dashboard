@@ -22,6 +22,8 @@ import {
   CheckCircle2,
   BarChart3,
   Lightbulb,
+  LayoutGrid,
+  RotateCcw,
 } from 'lucide-react';
 import {
   DEPARTMENTS,
@@ -45,6 +47,7 @@ import {
   AttritionDonutChart,
 } from './components/Charts';
 import { EmployeeDrawer } from './components/EmployeeDrawer';
+import { EditableBoard } from './components/EditableBoard';
 import { InsightsStack, InsightsStrip } from './components/InsightsPanel';
 import {
   generateOverviewInsights,
@@ -93,6 +96,8 @@ export function App() {
   const [insightCategory, setInsightCategory] = useState<
     'All' | 'Flight Risk' | 'Hiring' | 'Compensation' | 'Performance'
   >('All');
+  const [editMode, setEditMode] = useState(false);
+  const [resetSignal, setResetSignal] = useState(0);
   const dashboardRef = useRef<HTMLDivElement>(null);
   const [selected9BoxCell, setSelected9BoxCell] = useState<{
     perf: Employee['performance'];
@@ -471,8 +476,8 @@ export function App() {
               </select>
             </div>
 
-            {/* Right Avatar Stack + Export + Theme + Profile */}
-            <div className="flex items-center gap-2.5">
+            {/* Right Avatar Stack + Layout Edit + Snapshot + Export + Theme + Profile */}
+            <div className="flex items-center gap-2">
               <div className="hidden sm:flex -space-x-2">
                 {EMPLOYEES.slice(0, 3).map((e) => (
                   <button
@@ -486,6 +491,36 @@ export function App() {
                   </button>
                 ))}
               </div>
+
+              {activeTab === 'overview' && (
+                <div className="flex items-center gap-1.5" data-snapshot-ignore="true">
+                  <button
+                    type="button"
+                    onClick={() => setEditMode((m) => !m)}
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition cursor-pointer ${
+                      editMode
+                        ? 'bg-[#6B0F1A] text-white'
+                        : 'bg-[var(--bg-canvas)] border border-[var(--border-subtle)] hover:border-[#6B0F1A]'
+                    }`}
+                  >
+                    <LayoutGrid className="h-3.5 w-3.5" />
+                    <span className="hidden md:inline">{editMode ? 'Done' : 'Edit Layout'}</span>
+                  </button>
+                  {editMode && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setResetSignal((s) => s + 1);
+                        showToast('Dashboard layout reset to default');
+                      }}
+                      title="Reset Layout"
+                      className="h-8 w-8 rounded-full flex items-center justify-center border border-[var(--border-subtle)] bg-[var(--bg-canvas)] text-[var(--text-secondary)] hover:border-[#6B0F1A] cursor-pointer"
+                    >
+                      <RotateCcw className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+              )}
 
               <div className="relative" data-snapshot-ignore="true">
                 <button
@@ -567,190 +602,239 @@ export function App() {
           {/* Single-Screen Bento Content (min-h-0 flex-1, zero scroll) */}
           <main className="flex-1 min-h-0 overflow-hidden flex flex-col gap-3">
             {activeTab === 'overview' && (
-              <div className="flex-1 min-h-0 grid grid-rows-[auto_minmax(0,1.08fr)_minmax(0,0.92fr)] gap-3 animate-enter">
-                {/* Row 1: 4 Compact KPI Cards */}
-                <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                  <KpiCard
-                    title="Total Headcount"
-                    value={kpis.totalHeadcount.toLocaleString()}
-                    delta={kpis.headcountDelta}
-                    positive
-                    icon={<Users className="h-4 w-4 text-[#6B0F1A]" />}
-                    sparkData={MONTHLY_TRENDS.slice(-8).map((m) =>
-                      Math.round(m.headcount * kpis.scaleFactor)
-                    )}
-                  />
-                  <KpiCard
-                    title="Annualized Attrition"
-                    value={`${kpis.attritionRate}%`}
-                    delta={kpis.attritionDelta}
-                    positive={kpis.attritionPositive}
-                    icon={<UserMinus className="h-4 w-4 text-[#6B0F1A]" />}
-                    sparkData={[12.8, 12.4, 11.9, 11.6, 11.2, 10.9, 10.6, kpis.attritionRate]}
-                    sparkColor="#B83B5E"
-                  />
-                  <KpiCard
-                    title="Engagement (eNPS)"
-                    value={`+${kpis.eNps}`}
-                    delta={kpis.eNpsDelta}
-                    positive={kpis.eNpsPositive}
-                    icon={<HeartHandshake className="h-4 w-4 text-[#6B0F1A]" />}
-                    sparkData={[48, 49, 51, 50, 52, 54, 55, kpis.eNps]}
-                  />
-                  <KpiCard
-                    title="Avg. Time-to-Fill"
-                    value={`${kpis.avgTimeToFill}d`}
-                    delta={kpis.ttfDelta}
-                    positive={kpis.ttfPositive}
-                    icon={<Clock className="h-4 w-4 text-[#6B0F1A]" />}
-                    sparkData={[41, 39, 38, 36, 35, 34, 33, kpis.avgTimeToFill]}
-                  />
-                </section>
-
-                {/* Row 2: Headcount Velocity (7 cols) + Department Breakdown (5 cols) */}
-                <section className="min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-3">
-                  <div className="lg:col-span-7 min-h-0 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-5 py-3.5 shadow-xs flex flex-col overflow-hidden">
-                    <div className="shrink-0 flex items-center justify-between mb-1.5">
-                      <div>
-                        <h2 className="text-sm font-bold leading-tight">Headcount Velocity & Turnover</h2>
-                        <p className="text-[11px] text-[var(--text-muted)]">
-                          12-month active workforce with hires vs. departures
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-3 text-[11px] text-[var(--text-secondary)]">
-                        <span className="inline-flex items-center gap-1.5">
-                          <span className="h-2 w-2 rounded-full bg-[#6B0F1A]" /> Headcount (L)
-                        </span>
-                        <span className="inline-flex items-center gap-1.5">
-                          <span className="h-2 w-2 rounded-sm bg-[#B83B5E]/60" /> Hires (R)
-                        </span>
-                        <span className="inline-flex items-center gap-1.5">
-                          <span className="h-2 w-2 rounded-sm bg-[#D49BA4]/80" /> Exits (R)
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex-1 min-h-0 overflow-hidden">
-                      <HeadcountTrendChart data={MONTHLY_TRENDS} scaleFactor={kpis.scaleFactor} />
-                    </div>
-                  </div>
-
-                  <div className="lg:col-span-5 min-h-0 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-5 py-3.5 shadow-xs flex flex-col overflow-hidden">
-                    <div className="shrink-0 flex items-center justify-between mb-1.5">
-                      <div>
-                        <h2 className="text-sm font-bold leading-tight">Department Headcount</h2>
-                        <p className="text-[11px] text-[var(--text-muted)]">
-                          Click any bar to filter dashboard
-                        </p>
-                      </div>
-                      {selectedDept !== 'All Departments' && (
-                        <button
-                          type="button"
-                          onClick={() => setSelectedDept('All Departments')}
-                          className="text-[11px] font-semibold text-[#6B0F1A] hover:underline cursor-pointer"
-                        >
-                          Reset
-                        </button>
-                      )}
-                    </div>
-                    <div className="flex-1 min-h-0 flex flex-col justify-center overflow-hidden">
-                      <DepartmentBarChart
-                        departments={DEPARTMENT_STATS}
-                        selectedDept={selectedDept}
-                        onSelectDept={(dept) =>
-                          setSelectedDept((prev) => (prev === dept ? 'All Departments' : dept))
-                        }
+              <EditableBoard
+                boardKey="overview"
+                editMode={editMode}
+                resetSignal={resetSignal}
+                widgets={[
+                  {
+                    id: 'kpi-headcount',
+                    colSpan: 3,
+                    heightPx: 112,
+                    content: (
+                      <KpiCard
+                        title="Total Headcount"
+                        value={kpis.totalHeadcount.toLocaleString()}
+                        delta={kpis.headcountDelta}
+                        positive
+                        icon={<Users className="h-4 w-4 text-[#6B0F1A]" />}
+                        sparkData={MONTHLY_TRENDS.slice(-8).map((m) =>
+                          Math.round(m.headcount * kpis.scaleFactor)
+                        )}
                       />
-                    </div>
-                  </div>
-                </section>
-
-                {/* Row 3: 3-Column Bento Bottom Row */}
-                <section className="min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-3">
-                  {/* Card 1: Recruiting Pipeline */}
-                  <div className="lg:col-span-4 min-h-0 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-5 py-3.5 shadow-xs flex flex-col overflow-hidden">
-                    <div className="shrink-0 flex items-center justify-between mb-2">
-                      <h2 className="text-sm font-bold">Recruiting Pipeline</h2>
-                      <button
-                        type="button"
-                        onClick={() => setActiveTab('talent')}
-                        className="text-[11px] font-semibold text-[#6B0F1A] hover:underline cursor-pointer"
-                      >
-                        View all ↗
-                      </button>
-                    </div>
-                    <div className="flex-1 min-h-0 flex flex-col justify-center space-y-2">
-                      {RECRUITING_FUNNEL.slice(0, 5).map((step, i) => {
-                        const pct = Math.max(12, (step.count / RECRUITING_FUNNEL[0].count) * 100);
-                        return (
-                          <div key={step.stage} className="space-y-0.5">
-                            <div className="flex items-center justify-between text-[11px]">
-                              <span className="font-medium truncate">{step.stage}</span>
-                              <span className="tabular-nums font-bold">
-                                {step.count.toLocaleString()}
-                              </span>
-                            </div>
-                            <div className="h-1.5 w-full rounded-full bg-[var(--bg-surface-muted)] overflow-hidden">
-                              <div
-                                className="h-full rounded-full"
-                                style={{
-                                  width: `${pct}%`,
-                                  backgroundColor: i > 2 ? '#6B0F1A' : '#A12536',
-                                }}
-                              />
-                            </div>
+                    ),
+                  },
+                  {
+                    id: 'kpi-attrition',
+                    colSpan: 3,
+                    heightPx: 112,
+                    content: (
+                      <KpiCard
+                        title="Annualized Attrition"
+                        value={`${kpis.attritionRate}%`}
+                        delta={kpis.attritionDelta}
+                        positive={kpis.attritionPositive}
+                        icon={<UserMinus className="h-4 w-4 text-[#6B0F1A]" />}
+                        sparkData={[12.8, 12.4, 11.9, 11.6, 11.2, 10.9, 10.6, kpis.attritionRate]}
+                        sparkColor="#B83B5E"
+                      />
+                    ),
+                  },
+                  {
+                    id: 'kpi-enps',
+                    colSpan: 3,
+                    heightPx: 112,
+                    content: (
+                      <KpiCard
+                        title="Engagement (eNPS)"
+                        value={`+${kpis.eNps}`}
+                        delta={kpis.eNpsDelta}
+                        positive={kpis.eNpsPositive}
+                        icon={<HeartHandshake className="h-4 w-4 text-[#6B0F1A]" />}
+                        sparkData={[48, 49, 51, 50, 52, 54, 55, kpis.eNps]}
+                      />
+                    ),
+                  },
+                  {
+                    id: 'kpi-ttf',
+                    colSpan: 3,
+                    heightPx: 112,
+                    content: (
+                      <KpiCard
+                        title="Avg. Time-to-Fill"
+                        value={`${kpis.avgTimeToFill}d`}
+                        delta={kpis.ttfDelta}
+                        positive={kpis.ttfPositive}
+                        icon={<Clock className="h-4 w-4 text-[#6B0F1A]" />}
+                        sparkData={[41, 39, 38, 36, 35, 34, 33, kpis.avgTimeToFill]}
+                      />
+                    ),
+                  },
+                  {
+                    id: 'chart-velocity',
+                    colSpan: 7,
+                    heightPx: 255,
+                    content: (
+                      <div className="rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-5 py-3.5 shadow-xs flex flex-col overflow-hidden">
+                        <div className="shrink-0 flex items-center justify-between mb-1.5">
+                          <div>
+                            <h2 className="text-sm font-bold leading-tight">Headcount Velocity & Turnover</h2>
+                            <p className="text-[11px] text-[var(--text-muted)]">
+                              12-month active workforce with hires vs. departures
+                            </p>
                           </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Card 2: Retention Watchlist (2x2 horizontal compact cards) */}
-                  <div className="lg:col-span-4 min-h-0 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-5 py-3.5 shadow-xs flex flex-col overflow-hidden">
-                    <div className="shrink-0 flex items-center justify-between mb-2">
-                      <h2 className="text-sm font-bold">Retention Watchlist</h2>
-                      <button
-                        type="button"
-                        onClick={() => setActiveTab('retention')}
-                        className="text-[11px] font-semibold text-[#6B0F1A] hover:underline cursor-pointer"
-                      >
-                        View all ↗
-                      </button>
-                    </div>
-                    <div className="flex-1 min-h-0 grid grid-cols-2 grid-rows-2 gap-2">
-                      {filteredEmployees.slice(0, 4).map((emp) => (
-                        <button
-                          key={emp.id}
-                          type="button"
-                          onClick={() => setSelectedEmployee(emp)}
-                          className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-canvas)]/70 hover:border-[#6B0F1A] px-2.5 py-2 text-left transition cursor-pointer flex items-center gap-2.5 min-w-0"
-                        >
-                          <div className="h-8 w-8 shrink-0 rounded-full bg-gradient-to-br from-[#6B0F1A] to-[#B83B5E] text-white text-[10px] font-bold flex items-center justify-center">
-                            {emp.avatarInitials}
+                          <div className="flex items-center gap-3 text-[11px] text-[var(--text-secondary)]">
+                            <span className="inline-flex items-center gap-1.5">
+                              <span className="h-2 w-2 rounded-full bg-[#6B0F1A]" /> Headcount (L)
+                            </span>
+                            <span className="inline-flex items-center gap-1.5">
+                              <span className="h-2 w-2 rounded-sm bg-[#B83B5E]/60" /> Hires (R)
+                            </span>
+                            <span className="inline-flex items-center gap-1.5">
+                              <span className="h-2 w-2 rounded-sm bg-[#D49BA4]/80" /> Exits (R)
+                            </span>
                           </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="text-[11px] font-bold truncate">{emp.name}</div>
-                            <div className="text-[10px] text-[var(--text-muted)] truncate">
-                              {emp.role}
-                            </div>
-                            <div className="text-[10px] font-semibold text-[#6B0F1A] tabular-nums">
-                              Risk {emp.riskScore}/100
-                            </div>
+                        </div>
+                        <div className="flex-1 min-h-0 overflow-hidden">
+                          <HeadcountTrendChart data={MONTHLY_TRENDS} scaleFactor={kpis.scaleFactor} />
+                        </div>
+                      </div>
+                    ),
+                  },
+                  {
+                    id: 'chart-departments',
+                    colSpan: 5,
+                    heightPx: 255,
+                    content: (
+                      <div className="rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-5 py-3.5 shadow-xs flex flex-col overflow-hidden">
+                        <div className="shrink-0 flex items-center justify-between mb-1.5">
+                          <div>
+                            <h2 className="text-sm font-bold leading-tight">Department Headcount</h2>
+                            <p className="text-[11px] text-[var(--text-muted)]">
+                              Click any bar to filter dashboard
+                            </p>
                           </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Card 3: Rule-Based Business Insights */}
-                  <div className="lg:col-span-4 min-h-0 flex flex-col">
-                    <InsightsStack
-                      title="Executive Business Insights"
-                      insights={overviewInsights}
-                      compact
-                    />
-                  </div>
-                </section>
-              </div>
+                          {selectedDept !== 'All Departments' && (
+                            <button
+                              type="button"
+                              onClick={() => setSelectedDept('All Departments')}
+                              className="text-[11px] font-semibold text-[#6B0F1A] hover:underline cursor-pointer"
+                            >
+                              Reset
+                            </button>
+                          )}
+                        </div>
+                        <div className="flex-1 min-h-0 flex flex-col justify-center overflow-hidden">
+                          <DepartmentBarChart
+                            departments={DEPARTMENT_STATS}
+                            selectedDept={selectedDept}
+                            onSelectDept={(dept) =>
+                              setSelectedDept((prev) => (prev === dept ? 'All Departments' : dept))
+                            }
+                          />
+                        </div>
+                      </div>
+                    ),
+                  },
+                  {
+                    id: 'card-funnel',
+                    colSpan: 4,
+                    heightPx: 215,
+                    content: (
+                      <div className="rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-5 py-3.5 shadow-xs flex flex-col overflow-hidden">
+                        <div className="shrink-0 flex items-center justify-between mb-2">
+                          <h2 className="text-sm font-bold">Recruiting Pipeline</h2>
+                          <button
+                            type="button"
+                            onClick={() => setActiveTab('talent')}
+                            className="text-[11px] font-semibold text-[#6B0F1A] hover:underline cursor-pointer"
+                          >
+                            View all ↗
+                          </button>
+                        </div>
+                        <div className="flex-1 min-h-0 flex flex-col justify-center space-y-2">
+                          {RECRUITING_FUNNEL.slice(0, 5).map((step, i) => {
+                            const pct = Math.max(12, (step.count / RECRUITING_FUNNEL[0].count) * 100);
+                            return (
+                              <div key={step.stage} className="space-y-0.5">
+                                <div className="flex items-center justify-between text-[11px]">
+                                  <span className="font-medium truncate">{step.stage}</span>
+                                  <span className="tabular-nums font-bold">
+                                    {step.count.toLocaleString()}
+                                  </span>
+                                </div>
+                                <div className="h-1.5 w-full rounded-full bg-[var(--bg-surface-muted)] overflow-hidden">
+                                  <div
+                                    className="h-full rounded-full"
+                                    style={{
+                                      width: `${pct}%`,
+                                      backgroundColor: i > 2 ? '#6B0F1A' : '#A12536',
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ),
+                  },
+                  {
+                    id: 'card-watchlist',
+                    colSpan: 4,
+                    heightPx: 215,
+                    content: (
+                      <div className="rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-5 py-3.5 shadow-xs flex flex-col overflow-hidden">
+                        <div className="shrink-0 flex items-center justify-between mb-2">
+                          <h2 className="text-sm font-bold">Retention Watchlist</h2>
+                          <button
+                            type="button"
+                            onClick={() => setActiveTab('retention')}
+                            className="text-[11px] font-semibold text-[#6B0F1A] hover:underline cursor-pointer"
+                          >
+                            View all ↗
+                          </button>
+                        </div>
+                        <div className="flex-1 min-h-0 grid grid-cols-2 grid-rows-2 gap-2">
+                          {filteredEmployees.slice(0, 4).map((emp) => (
+                            <button
+                              key={emp.id}
+                              type="button"
+                              onClick={() => setSelectedEmployee(emp)}
+                              className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-canvas)]/70 hover:border-[#6B0F1A] px-2.5 py-2 text-left transition cursor-pointer flex items-center gap-2.5 min-w-0"
+                            >
+                              <div className="h-8 w-8 shrink-0 rounded-full bg-gradient-to-br from-[#6B0F1A] to-[#B83B5E] text-white text-[10px] font-bold flex items-center justify-center">
+                                {emp.avatarInitials}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="text-[11px] font-bold truncate">{emp.name}</div>
+                                <div className="text-[10px] text-[var(--text-muted)] truncate">
+                                  {emp.role}
+                                </div>
+                                <div className="text-[10px] font-semibold text-[#6B0F1A] tabular-nums">
+                                  Risk {emp.riskScore}/100
+                                </div>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ),
+                  },
+                  {
+                    id: 'card-insights',
+                    colSpan: 4,
+                    heightPx: 215,
+                    content: (
+                      <InsightsStack
+                        title="Executive Business Insights"
+                        insights={overviewInsights}
+                        compact
+                      />
+                    ),
+                  },
+                ]}
+              />
             )}
 
             {/* ADMIN INSIGHTS HUB (Aggregated Rule-Based Engine across all pages) */}
