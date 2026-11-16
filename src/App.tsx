@@ -55,6 +55,7 @@ import {
   generateDirectorySummary,
   generateMasterAdminInsights,
 } from './utils/insightsEngine';
+import type { BusinessInsight } from './utils/insightsEngine';
 
 type NavTab =
   | 'overview'
@@ -84,6 +85,7 @@ export function App() {
   const [showSearchInput, setShowSearchInput] = useState(false);
   const [darkOxblood, setDarkOxblood] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [selectedInsight, setSelectedInsight] = useState<BusinessInsight | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [snapshotMenuOpen, setSnapshotMenuOpen] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
@@ -803,12 +805,9 @@ export function App() {
                     </div>
                   </div>
 
-                  {/* Insights Grid */}
+                  {/* Insights Grid (clean summary cards; click any card to reveal full details) */}
                   <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-2 gap-3 overflow-hidden">
                     {visibleInsights.slice(0, 8).map((ins) => {
-                      const linkedEmp = ins.employeeId
-                        ? EMPLOYEES.find((e) => e.id === ins.employeeId)
-                        : undefined;
                       const barColor =
                         ins.signal === 'Action Required'
                           ? 'bg-[#6B0F1A]'
@@ -823,15 +822,14 @@ export function App() {
                           : 'text-emerald-700 dark:text-emerald-400';
 
                       return (
-                        <div
+                        <button
                           key={ins.id}
-                          onClick={() => linkedEmp && setSelectedEmployee(linkedEmp)}
-                          className={`relative rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] pl-5 pr-4 py-3.5 shadow-xs flex flex-col justify-between overflow-hidden ${
-                            linkedEmp ? 'cursor-pointer hover:border-[#6B0F1A] transition' : ''
-                          }`}
+                          type="button"
+                          onClick={() => setSelectedInsight(ins)}
+                          className="relative text-left rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] pl-5 pr-5 py-3.5 shadow-xs flex flex-col justify-between overflow-hidden cursor-pointer hover:border-[#6B0F1A] transition group"
                         >
                           <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${barColor}`} />
-                          <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center justify-between gap-2 w-full">
                             <span className={`text-[10px] font-bold uppercase tracking-wider ${sigColor}`}>
                               {ins.signal} · {ins.category}
                             </span>
@@ -839,18 +837,15 @@ export function App() {
                               {ins.metric}
                             </span>
                           </div>
-                          <div className="text-sm font-bold text-[var(--text-primary)] mt-1 leading-snug">
-                            {ins.headline}
-                          </div>
-                          <p className="text-xs text-[var(--text-secondary)] leading-relaxed mt-1">
-                            {ins.detail}
-                          </p>
-                          {linkedEmp && (
-                            <div className="mt-2 text-[11px] font-semibold text-[#6B0F1A] dark:text-rose-300">
-                              Click to open {linkedEmp.name}'s 360° profile →
+                          <div className="flex items-end justify-between gap-3 w-full mt-1">
+                            <div className="text-sm font-bold text-[var(--text-primary)] leading-snug line-clamp-2">
+                              {ins.headline}
                             </div>
-                          )}
-                        </div>
+                            <span className="shrink-0 text-[11px] font-semibold text-[#6B0F1A] dark:text-rose-300 opacity-75 group-hover:opacity-100 transition">
+                              Details →
+                            </span>
+                          </div>
+                        </button>
                       );
                     })}
                   </div>
@@ -1371,6 +1366,81 @@ export function App() {
         onClose={() => setSelectedEmployee(null)}
         onActionToast={showToast}
       />
+
+      {/* Insight Detail Modal */}
+      {selectedInsight && (() => {
+        const linkedEmp = selectedInsight.employeeId
+          ? EMPLOYEES.find((e) => e.id === selectedInsight.employeeId)
+          : undefined;
+        const targetTab: NavTab =
+          selectedInsight.category === 'Hiring'
+            ? 'talent'
+            : selectedInsight.category === 'Compensation'
+            ? 'compensation'
+            : selectedInsight.category === 'Performance'
+            ? 'performance'
+            : 'retention';
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div
+              className="fixed inset-0 bg-[#1A0408]/55 backdrop-blur-xs"
+              onClick={() => setSelectedInsight(null)}
+            />
+            <div className="relative z-10 w-full max-w-lg rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 shadow-2xl space-y-4 animate-enter">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-[#6B0F1A] dark:text-rose-300">
+                  {selectedInsight.signal} · {selectedInsight.category}
+                </span>
+                <span className="text-sm font-extrabold tabular-nums text-[var(--text-primary)]">
+                  {selectedInsight.metric}
+                </span>
+              </div>
+
+              <h3 className="text-lg font-extrabold leading-snug text-[var(--text-primary)]">
+                {selectedInsight.headline}
+              </h3>
+
+              <p className="text-sm leading-relaxed text-[var(--text-secondary)] rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-canvas)]/70 p-4">
+                {selectedInsight.detail}
+              </p>
+
+              <div className="flex items-center justify-end gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedInsight(null)}
+                  className="rounded-full border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-4 py-2 text-xs font-semibold hover:border-[#6B0F1A] cursor-pointer"
+                >
+                  Close
+                </button>
+                {linkedEmp ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedInsight(null);
+                      setSelectedEmployee(linkedEmp);
+                    }}
+                    className="rounded-full bg-[#6B0F1A] hover:bg-[#450912] text-white px-4 py-2 text-xs font-semibold cursor-pointer"
+                  >
+                    Open {linkedEmp.name}'s 360° Profile →
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedInsight(null);
+                      setActiveTab(targetTab);
+                    }}
+                    className="rounded-full bg-[#6B0F1A] hover:bg-[#450912] text-white px-4 py-2 text-xs font-semibold cursor-pointer"
+                  >
+                    View {selectedInsight.category} Page →
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Toast Notification */}
       {toast && (
