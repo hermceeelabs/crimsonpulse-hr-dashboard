@@ -21,6 +21,7 @@ import {
   Bell,
   CheckCircle2,
   BarChart3,
+  Lightbulb,
 } from 'lucide-react';
 import {
   DEPARTMENTS,
@@ -52,10 +53,12 @@ import {
   generateCompInsights,
   generatePerformanceInsights,
   generateDirectorySummary,
+  generateMasterAdminInsights,
 } from './utils/insightsEngine';
 
 type NavTab =
   | 'overview'
+  | 'insights'
   | 'talent'
   | 'retention'
   | 'compensation'
@@ -64,6 +67,7 @@ type NavTab =
 
 const RAIL_ITEMS: { id: NavTab; label: string; icon: React.FC<{ className?: string }> }[] = [
   { id: 'overview', label: 'Overview', icon: Home },
+  { id: 'insights', label: 'Admin Insights', icon: Lightbulb },
   { id: 'talent', label: 'Talent & Hiring', icon: UserPlus },
   { id: 'retention', label: 'Retention & Risk', icon: ShieldAlert },
   { id: 'compensation', label: 'Compensation', icon: Wallet },
@@ -84,6 +88,9 @@ export function App() {
   const [snapshotMenuOpen, setSnapshotMenuOpen] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
   const [dirPage, setDirPage] = useState(1);
+  const [insightCategory, setInsightCategory] = useState<
+    'All' | 'Flight Risk' | 'Hiring' | 'Compensation' | 'Performance'
+  >('All');
   const dashboardRef = useRef<HTMLDivElement>(null);
   const [selected9BoxCell, setSelected9BoxCell] = useState<{
     perf: Employee['performance'];
@@ -152,6 +159,31 @@ export function App() {
       (baseHeadcount || 1);
     const avgTimeToFill = Math.round(weightedTtf + timeframeAdjust.ttf);
 
+    // Dynamic deltas & positive indicators reactive to Department, Hub & Timeframe
+    const qoqGrowth =
+      selectedTimeframe === 'Q3 2026'
+        ? +(4.8 + (eNps - 50) * 0.12).toFixed(1)
+        : selectedTimeframe === 'YTD 2026'
+        ? +(12.4 + (eNps - 50) * 0.15).toFixed(1)
+        : +(6.2 + (eNps - 54) * 0.18).toFixed(1);
+    const headcountDelta = `${qoqGrowth >= 0 ? '+' : ''}${qoqGrowth}% ${
+      selectedTimeframe === 'YTD 2026' ? 'YTD' : 'QoQ'
+    }`;
+
+    const attrDiff = +(attritionRate - 12.0).toFixed(1);
+    const attritionPositive = attrDiff <= 0;
+    const attritionDelta =
+      attrDiff <= 0 ? `${attrDiff}% vs 12% target` : `+${attrDiff}% above ceiling`;
+
+    const enpsDiff = eNps - 50;
+    const eNpsPositive = enpsDiff >= 0;
+    const eNpsDelta =
+      enpsDiff >= 0 ? `+${enpsDiff} pts vs 50 target` : `${enpsDiff} pts below target`;
+
+    const ttfDiff = avgTimeToFill - 34;
+    const ttfPositive = ttfDiff <= 0;
+    const ttfDelta = ttfDiff <= 0 ? `${ttfDiff}d vs 34d SLA` : `+${ttfDiff}d over SLA`;
+
     return {
       totalHeadcount,
       totalOpenReqs,
@@ -159,8 +191,15 @@ export function App() {
       eNps,
       avgTimeToFill,
       scaleFactor: totalHeadcount / 426,
+      headcountDelta,
+      attritionDelta,
+      attritionPositive,
+      eNpsDelta,
+      eNpsPositive,
+      ttfDelta,
+      ttfPositive,
     };
-  }, [filteredDepts, locationFactor, timeframeAdjust]);
+  }, [filteredDepts, locationFactor, timeframeAdjust, selectedTimeframe]);
 
   const filteredEmployees = useMemo(() => {
     return EMPLOYEES.filter((emp) => {
@@ -205,6 +244,7 @@ export function App() {
   const compInsights = useMemo(() => generateCompInsights(insightCtx), [insightCtx]);
   const perfInsights = useMemo(() => generatePerformanceInsights(insightCtx), [insightCtx]);
   const dirSummary = useMemo(() => generateDirectorySummary(insightCtx), [insightCtx]);
+  const masterInsights = useMemo(() => generateMasterAdminInsights(insightCtx), [insightCtx]);
 
   const handleExportCSV = () => {
     const headers = ['ID', 'Name', 'Role', 'Department', 'Location', 'Salary', 'CompaRatio', 'Risk'];
@@ -531,35 +571,37 @@ export function App() {
                   <KpiCard
                     title="Total Headcount"
                     value={kpis.totalHeadcount.toLocaleString()}
-                    delta="+6.2% QoQ"
+                    delta={kpis.headcountDelta}
                     positive
                     icon={<Users className="h-4 w-4 text-[#6B0F1A]" />}
-                    sparkData={[372, 379, 386, 392, 403, 411, 420, 426]}
+                    sparkData={MONTHLY_TRENDS.slice(-8).map((m) =>
+                      Math.round(m.headcount * kpis.scaleFactor)
+                    )}
                   />
                   <KpiCard
                     title="Annualized Attrition"
                     value={`${kpis.attritionRate}%`}
-                    delta="-1.4% vs Q3"
-                    positive
+                    delta={kpis.attritionDelta}
+                    positive={kpis.attritionPositive}
                     icon={<UserMinus className="h-4 w-4 text-[#6B0F1A]" />}
-                    sparkData={[12.8, 12.4, 11.9, 11.6, 11.2, 10.9, 10.6, 10.4]}
+                    sparkData={[12.8, 12.4, 11.9, 11.6, 11.2, 10.9, 10.6, kpis.attritionRate]}
                     sparkColor="#B83B5E"
                   />
                   <KpiCard
                     title="Engagement (eNPS)"
                     value={`+${kpis.eNps}`}
-                    delta="+5 pts YoY"
-                    positive
+                    delta={kpis.eNpsDelta}
+                    positive={kpis.eNpsPositive}
                     icon={<HeartHandshake className="h-4 w-4 text-[#6B0F1A]" />}
-                    sparkData={[48, 49, 51, 50, 52, 54, 55, 56]}
+                    sparkData={[48, 49, 51, 50, 52, 54, 55, kpis.eNps]}
                   />
                   <KpiCard
                     title="Avg. Time-to-Fill"
                     value={`${kpis.avgTimeToFill}d`}
-                    delta="-4 days QoQ"
-                    positive
+                    delta={kpis.ttfDelta}
+                    positive={kpis.ttfPositive}
                     icon={<Clock className="h-4 w-4 text-[#6B0F1A]" />}
-                    sparkData={[41, 39, 38, 36, 35, 34, 33, 32]}
+                    sparkData={[41, 39, 38, 36, 35, 34, 33, kpis.avgTimeToFill]}
                   />
                 </section>
 
@@ -706,22 +748,131 @@ export function App() {
               </div>
             )}
 
+            {/* ADMIN INSIGHTS HUB (Aggregated Rule-Based Engine across all pages) */}
+            {activeTab === 'insights' && (() => {
+              const categories = ['All', 'Flight Risk', 'Hiring', 'Compensation', 'Performance'] as const;
+              const visibleInsights =
+                insightCategory === 'All'
+                  ? masterInsights
+                  : masterInsights.filter((i) => i.category === insightCategory);
+              const actionCount = masterInsights.filter((i) => i.signal === 'Action Required').length;
+              const watchCount = masterInsights.filter((i) => i.signal === 'Watch').length;
+              const positiveCount = masterInsights.filter((i) => i.signal === 'Positive').length;
+
+              return (
+                <div className="flex-1 min-h-0 flex flex-col gap-3 animate-enter overflow-hidden">
+                  {/* Top Summary & Category Filter Bar */}
+                  <div className="shrink-0 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-5 py-3 shadow-xs flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-5 text-xs">
+                      <div>
+                        <span className="text-[var(--text-muted)]">Rules Evaluated: </span>
+                        <strong className="tabular-nums">{masterInsights.length}</strong>
+                      </div>
+                      <div>
+                        <span className="text-[#6B0F1A] font-semibold">Action Required: </span>
+                        <strong className="tabular-nums text-[#6B0F1A]">{actionCount}</strong>
+                      </div>
+                      <div>
+                        <span className="text-amber-700 font-semibold">Watch: </span>
+                        <strong className="tabular-nums text-amber-700">{watchCount}</strong>
+                      </div>
+                      <div>
+                        <span className="text-emerald-700 font-semibold">Positive: </span>
+                        <strong className="tabular-nums text-emerald-700">{positiveCount}</strong>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      {categories.map((cat) => (
+                        <button
+                          key={cat}
+                          type="button"
+                          onClick={() => setInsightCategory(cat)}
+                          className={`rounded-full px-3 py-1 text-xs font-semibold transition cursor-pointer ${
+                            insightCategory === cat
+                              ? 'bg-[#6B0F1A] text-white'
+                              : 'bg-[var(--bg-canvas)] text-[var(--text-secondary)] border border-[var(--border-subtle)] hover:border-[#6B0F1A]/50'
+                          }`}
+                        >
+                          {cat}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Insights Grid */}
+                  <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-2 gap-3 overflow-hidden">
+                    {visibleInsights.slice(0, 8).map((ins) => {
+                      const linkedEmp = ins.employeeId
+                        ? EMPLOYEES.find((e) => e.id === ins.employeeId)
+                        : undefined;
+                      const barColor =
+                        ins.signal === 'Action Required'
+                          ? 'bg-[#6B0F1A]'
+                          : ins.signal === 'Watch'
+                          ? 'bg-amber-600'
+                          : 'bg-emerald-600';
+                      const sigColor =
+                        ins.signal === 'Action Required'
+                          ? 'text-[#6B0F1A] dark:text-rose-300'
+                          : ins.signal === 'Watch'
+                          ? 'text-amber-700 dark:text-amber-300'
+                          : 'text-emerald-700 dark:text-emerald-400';
+
+                      return (
+                        <div
+                          key={ins.id}
+                          onClick={() => linkedEmp && setSelectedEmployee(linkedEmp)}
+                          className={`relative rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] pl-5 pr-4 py-3.5 shadow-xs flex flex-col justify-between overflow-hidden ${
+                            linkedEmp ? 'cursor-pointer hover:border-[#6B0F1A] transition' : ''
+                          }`}
+                        >
+                          <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${barColor}`} />
+                          <div className="flex items-center justify-between gap-2">
+                            <span className={`text-[10px] font-bold uppercase tracking-wider ${sigColor}`}>
+                              {ins.signal} · {ins.category}
+                            </span>
+                            <span className="text-xs font-extrabold tabular-nums text-[var(--text-primary)]">
+                              {ins.metric}
+                            </span>
+                          </div>
+                          <div className="text-sm font-bold text-[var(--text-primary)] mt-1 leading-snug">
+                            {ins.headline}
+                          </div>
+                          <p className="text-xs text-[var(--text-secondary)] leading-relaxed mt-1">
+                            {ins.detail}
+                          </p>
+                          {linkedEmp && (
+                            <div className="mt-2 text-[11px] font-semibold text-[#6B0F1A] dark:text-rose-300">
+                              Click to open {linkedEmp.name}'s 360° profile →
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* TALENT & HIRING TAB (single-screen fit with insights) */}
-            {activeTab === 'talent' && (
+            {activeTab === 'talent' && (() => {
+              const criticalCount = filteredReqs.filter((r) => r.priority === 'Critical').length;
+              return (
               <div className="flex-1 min-h-0 grid grid-rows-[auto_minmax(0,1fr)_auto] gap-3 animate-enter">
                 <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                   <KpiCard
                     title="Open Requisitions"
                     value={`${kpis.totalOpenReqs}`}
-                    delta="6 Critical"
-                    positive
+                    delta={`${criticalCount} Critical`}
+                    positive={criticalCount <= 2}
                     icon={<UserPlus className="h-4 w-4 text-[#6B0F1A]" />}
-                    sparkData={[28, 30, 31, 29, 33, 34, 35, 35]}
+                    sparkData={[28, 30, 31, 29, 33, 34, 35, kpis.totalOpenReqs]}
                   />
                   <KpiCard
                     title="Offer Acceptance"
                     value="88.5%"
-                    delta="+6.4% QoQ"
+                    delta="+6.4% vs 82% target"
                     positive
                     icon={<CheckCircle2 className="h-4 w-4 text-[#6B0F1A]" />}
                     sparkData={[79, 80, 82, 83, 85, 86, 88, 88.5]}
@@ -729,7 +880,7 @@ export function App() {
                   <KpiCard
                     title="Avg. Cost-per-Hire"
                     value="$4,280"
-                    delta="-9.2% YoY"
+                    delta="-9.2% vs $4.7K avg"
                     positive
                     icon={<Wallet className="h-4 w-4 text-[#6B0F1A]" />}
                     sparkData={[4900, 4820, 4710, 4600, 4520, 4410, 4350, 4280]}
@@ -737,10 +888,10 @@ export function App() {
                   <KpiCard
                     title="Avg. Time-to-Fill"
                     value={`${kpis.avgTimeToFill}d`}
-                    delta="-4d vs target"
-                    positive
+                    delta={kpis.ttfDelta}
+                    positive={kpis.ttfPositive}
                     icon={<Clock className="h-4 w-4 text-[#6B0F1A]" />}
-                    sparkData={[40, 39, 37, 36, 35, 34, 33, 32]}
+                    sparkData={[40, 39, 37, 36, 35, 34, 33, kpis.avgTimeToFill]}
                   />
                 </section>
 
@@ -810,7 +961,8 @@ export function App() {
 
                 <InsightsStrip title="Hiring & Pipeline Insights" insights={talentInsights} />
               </div>
-            )}
+              );
+            })()}
 
             {/* RETENTION & RISK TAB */}
             {activeTab === 'retention' && (
@@ -860,24 +1012,37 @@ export function App() {
             )}
 
             {/* COMPENSATION & EQUITY TAB */}
-            {activeTab === 'compensation' && (
+            {activeTab === 'compensation' && (() => {
+              const totalPayrollM = (
+                filteredEmployees.reduce((s, e) => s + e.salary, 0) / 1_000_000
+              ).toFixed(1);
+              const avgCompa = +(
+                filteredEmployees.reduce((s, e) => s + e.compaRatio, 0) /
+                (filteredEmployees.length || 1)
+              ).toFixed(2);
+              const compaDiff = +((avgCompa - 1.0) * 100).toFixed(1);
+              return (
               <div className="flex-1 min-h-0 grid grid-rows-[auto_minmax(0,1fr)] gap-3 animate-enter">
                 <section className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <KpiCard
                     title="Annualized Base Payroll"
-                    value="$67.4M"
-                    delta="94% of budget"
+                    value={`$${totalPayrollM}M`}
+                    delta={`${filteredEmployees.length} active staff`}
                     positive
                     icon={<Wallet className="h-4 w-4 text-[#6B0F1A]" />}
-                    sparkData={[61, 62, 63, 64, 65, 66, 67, 67.4]}
+                    sparkData={[61, 62, 63, 64, 65, 66, 67, Number(totalPayrollM)]}
                   />
                   <KpiCard
-                    title="Org Avg. Compa-Ratio"
-                    value="1.00x"
-                    delta="On market median"
-                    positive
+                    title="Avg. Compa-Ratio"
+                    value={`${avgCompa.toFixed(2)}x`}
+                    delta={
+                      compaDiff >= 0
+                        ? `+${compaDiff}% vs median`
+                        : `${compaDiff}% below median`
+                    }
+                    positive={avgCompa >= 0.96}
                     icon={<ArrowUpRight className="h-4 w-4 text-[#6B0F1A]" />}
-                    sparkData={[0.97, 0.98, 0.98, 0.99, 0.99, 1.0, 1.0, 1.0]}
+                    sparkData={[0.97, 0.98, 0.98, 0.99, 0.99, 1.0, 1.0, avgCompa]}
                   />
                   <KpiCard
                     title="Gender Pay Parity"
@@ -949,7 +1114,8 @@ export function App() {
                   </div>
                 </div>
               </div>
-            )}
+              );
+            })()}
 
             {/* PERFORMANCE & 9-BOX TAB */}
             {activeTab === 'performance' && (
