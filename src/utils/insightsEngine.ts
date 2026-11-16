@@ -28,16 +28,16 @@ export function generateOverviewInsights(ctx: InsightContext): BusinessInsight[]
     insights.push({
       id: 'ov-attr',
       signal: 'Action Required',
-      headline: `${topAttrDept.name} attrition exceeds 12% ceiling`,
-      detail: `Running at ${topAttrDept.attritionRate}% annualized turnover across ${topAttrDept.headcount} staff. Prioritize skip-level stay interviews.`,
+      headline: `${topAttrDept.name} is losing too many people`,
+      detail: `${topAttrDept.attritionRate}% of ${topAttrDept.name} staff are leaving per year, which is above our 12% limit. Managers should hold check-in talks.`,
       metric: `${topAttrDept.attritionRate}%`,
     });
   } else if (topAttrDept) {
     insights.push({
       id: 'ov-attr-ok',
       signal: 'Positive',
-      headline: `Turnover within target across ${ctx.selectedDept}`,
-      detail: `Annualized attrition at ${ctx.attritionRate}% sits comfortably below the 12.0% operational threshold.`,
+      headline: `Staff turnover is healthy in ${ctx.selectedDept}`,
+      detail: `Only ${ctx.attritionRate}% of staff are leaving per year, well below our 12% limit.`,
       metric: `${ctx.attritionRate}%`,
     });
   }
@@ -49,16 +49,19 @@ export function generateOverviewInsights(ctx: InsightContext): BusinessInsight[]
     insights.push({
       id: 'ov-comp-risk',
       signal: 'Action Required',
-      headline: `${underpaidAtRisk.length} high-risk staff paid below 0.93x band`,
-      detail: `Market-lagging pay is compounding flight risk. Targeted mid-cycle adjustments can cut preventable exits.`,
+      headline: `${underpaidAtRisk.length} high-risk staff are paid below average`,
+      detail: `These employees are likely to leave soon and earn less than the market rate. Raising their pay can keep them.`,
       metric: `${underpaidAtRisk.length} staff`,
     });
   } else {
     insights.push({
       id: 'ov-enps',
       signal: ctx.eNps >= 50 ? 'Positive' : 'Watch',
-      headline: ctx.eNps >= 50 ? 'Engagement outperforming SaaS benchmark' : 'Engagement needs manager focus',
-      detail: `Current eNPS of +${ctx.eNps} reflects strong leadership alignment and 91% pulse participation.`,
+      headline:
+        ctx.eNps >= 50
+          ? 'Employees are happy and engaged'
+          : 'Employee happiness needs attention',
+      detail: `Our employee happiness score is +${ctx.eNps}, based on 91% of staff completing the survey.`,
       metric: `+${ctx.eNps}`,
     });
   }
@@ -68,9 +71,9 @@ export function generateOverviewInsights(ctx: InsightContext): BusinessInsight[]
     insights.push({
       id: 'ov-req-age',
       signal: 'Watch',
-      headline: `${staleReqs.length} priority role${staleReqs.length > 1 ? 's' : ''} open 30+ days`,
-      detail: `Extended time-to-fill (${ctx.avgTimeToFill}d avg) risks slowing Q4 delivery. Shift sourcing toward employee referrals.`,
-      metric: `${staleReqs.length} reqs`,
+      headline: `${staleReqs.length} open job${staleReqs.length > 1 ? 's have' : ' has'} been unfilled for 30+ days`,
+      detail: `Taking ${ctx.avgTimeToFill} days on average to hire can slow down team goals. Ask staff for referrals to hire faster.`,
+      metric: `${staleReqs.length} jobs`,
     });
   }
 
@@ -86,8 +89,8 @@ export function generateTalentInsights(ctx: InsightContext): BusinessInsight[] {
     {
       id: 'tal-ref',
       signal: 'Positive',
-      headline: 'Referrals close 11 days faster than inbound',
-      detail: 'Referral hires average 24 days to fill with 94% offer acceptance and a 92 quality score. Expand Q4 referral bonus.',
+      headline: 'Staff referrals get hired 11 days faster',
+      detail: 'People referred by current employees are hired in 24 days on average and accept job offers 94% of the time.',
       metric: '94% accept',
     },
     {
@@ -95,20 +98,20 @@ export function generateTalentInsights(ctx: InsightContext): BusinessInsight[] {
       signal: staleReqs.length > 0 ? 'Action Required' : 'Positive',
       headline:
         staleReqs.length > 0
-          ? `${staleReqs.length} requisition${staleReqs.length > 1 ? 's' : ''} aged past 30 days`
-          : 'All active requisitions within 30-day SLA',
+          ? `${staleReqs.length} open job${staleReqs.length > 1 ? 's are' : ' is'} taking over 30 days`
+          : 'All open jobs are moving on schedule',
       detail:
         staleReqs.length > 0
-          ? `Longest open: ${staleReqs[0].title} (${staleReqs[0].daysOpen}d). Calibrate rubric or widen remote hub eligibility.`
-          : 'Pipeline velocity is healthy across all active hiring stages.',
-      metric: staleReqs.length > 0 ? `${staleReqs[0].daysOpen}d max` : 'On SLA',
+          ? `The longest open role is ${staleReqs[0].title} (${staleReqs[0].daysOpen} days). Consider opening it to remote candidates.`
+          : 'Every open role is currently being filled within our 30-day goal.',
+      metric: staleReqs.length > 0 ? `${staleReqs[0].daysOpen}d max` : 'On time',
     },
     {
       id: 'tal-crit',
       signal: criticalReqs.length >= 2 ? 'Watch' : 'Positive',
-      headline: `${criticalReqs.length} critical-priority roles of ${totalOpen} open`,
-      detail: `Concentrated in Engineering and Sales & GTM. Final-panel conversion is 44.1%—keep executive interviewers unblocked.`,
-      metric: `${criticalReqs.length} critical`,
+      headline: `${criticalReqs.length} urgent roles out of ${totalOpen} open jobs`,
+      detail: 'Most urgent openings are in Engineering and Sales. Keep interview panels scheduled quickly so we do not lose candidates.',
+      metric: `${criticalReqs.length} urgent`,
     },
   ];
 }
@@ -122,25 +125,25 @@ export function generateRetentionInsights(ctx: InsightContext): BusinessInsight[
     {
       id: 'ret-tenure',
       signal: 'Action Required',
-      headline: '1.5–3 year tenure band has peak flight risk (16%)',
-      detail: 'Career progression (34%) and compensation (26%) drive 60% of exits. Launch L4→L5 growth pathing before 24-month mark.',
+      headline: 'Staff here 1.5–3 years are most likely to leave',
+      detail: 'Lack of career growth (34%) and pay (26%) cause most departures. Show clear promotion steps before year 2.',
       metric: '16% high',
     },
     {
       id: 'ret-overdue',
       signal: overdueHighRisk.length > 0 ? 'Action Required' : 'Watch',
-      headline: `${highRisk.length} employees flagged high-risk (${overdueHighRisk.length} overdue reviews)`,
+      headline: `${highRisk.length} staff are likely to leave (${overdueHighRisk.length} have overdue reviews)`,
       detail:
         overdueHighRisk.length > 0
-          ? 'Overdue performance reviews strongly correlate with voluntary exits within 90 days. Escalate to department heads.'
-          : 'All high-risk staff have current review cycles; focus on equity refreshers and workload balance.',
+          ? 'People whose performance reviews are late are much more likely to quit within 3 months. Have managers complete them now.'
+          : 'All high-risk staff have up-to-date reviews; focus on fair pay and manageable workloads.',
       metric: `${highRisk.length} at risk`,
     },
     {
       id: 'ret-dept',
       signal: topDept && topDept.attritionRate > 12 ? 'Watch' : 'Positive',
-      headline: `${topDept?.name ?? 'Org'} leads turnover at ${topDept?.attritionRate ?? ctx.attritionRate}%`,
-      detail: 'Exit interviews cite territory/career clarity. Pairing manager coaching with quarterly pulse check-ins reduces churn.',
+      headline: `${topDept?.name ?? 'The company'} has the highest turnover (${topDept?.attritionRate ?? ctx.attritionRate}%)`,
+      detail: 'People leaving say they want clearer growth paths and better team support. Regular 1-on-1s can help keep them.',
       metric: `${topDept?.attritionRate ?? ctx.attritionRate}%`,
     },
   ];
@@ -156,22 +159,22 @@ export function generateCompInsights(ctx: InsightContext): BusinessInsight[] {
     {
       id: 'comp-below',
       signal: belowBand.length > 0 ? 'Action Required' : 'Positive',
-      headline: `${belowBand.length} employees below 0.93x market band`,
-      detail: `${highPerfBelow.length} of them are "Exceeds" performers—highest ROI for targeted merit adjustments before Q1.`,
+      headline: `${belowBand.length} employees are paid below the market average`,
+      detail: `${highPerfBelow.length} of them are top performers. Giving them a raise before next quarter will help keep them.`,
       metric: `${belowBand.length} staff`,
     },
     {
       id: 'comp-parity',
       signal: 'Positive',
-      headline: 'Gender pay parity holding at 99.1%',
-      detail: 'Adjusted gap across L3–L7 is under 1.0%, outperforming the 97.5% industry benchmark (+0.6% YoY improvement).',
+      headline: 'Men and women in the same roles are paid equally',
+      detail: 'Pay between men and women at the same job level is 99.1% equal, better than the 97.5% industry average.',
       metric: '99.1%',
     },
     {
       id: 'comp-median',
       signal: avgCompa < 0.96 ? 'Watch' : 'Positive',
-      headline: `Filtered org compa-ratio averages ${avgCompa.toFixed(2)}x`,
-      detail: 'Total payroll tracks at 94% of budget, leaving ~6% headroom for critical-skill retention grants.',
+      headline: `Average pay is right on the market rate (${avgCompa.toFixed(2)}x)`,
+      detail: 'We have used 94% of our salary budget, leaving 6% room for raises and retention bonuses.',
       metric: `${avgCompa.toFixed(2)}x`,
     },
   ];
@@ -189,22 +192,22 @@ export function generatePerformanceInsights(ctx: InsightContext): BusinessInsigh
     {
       id: 'perf-stars',
       signal: 'Positive',
-      headline: `${stars.length} "Exceeds · High Potential" future leaders`,
-      detail: `Represents ${Math.round((stars.length / total) * 100)}% of filtered workforce—ready for succession planning and stretch projects.`,
-      metric: `${Math.round((stars.length / total) * 100)}% bench`,
+      headline: `${stars.length} top performers are ready for bigger roles`,
+      detail: `That is ${Math.round((stars.length / total) * 100)}% of this group—strong candidates for future leadership and key projects.`,
+      metric: `${Math.round((stars.length / total) * 100)}% ready`,
     },
     {
       id: 'perf-overdue',
       signal: overdue.length > 0 ? 'Action Required' : 'Positive',
-      headline: `${overdue.length} performance evaluations overdue`,
-      detail: `${Math.round((overdue.length / total) * 100)}% of filtered reviews remain unsubmitted. Lock deadline is Nov 20.`,
+      headline: `${overdue.length} performance reviews are past due`,
+      detail: `${Math.round((overdue.length / total) * 100)}% of reviews in this group still need to be finished before the Nov 20 deadline.`,
       metric: `${overdue.length} overdue`,
     },
     {
       id: 'perf-dev',
       signal: developing.length / total > 0.25 ? 'Watch' : 'Positive',
-      headline: `${developing.length} employees in "Developing" tier`,
-      detail: `Accounts for ${Math.round((developing.length / total) * 100)}% of filtered staff—assign structured 60-day coaching milestones.`,
+      headline: `${developing.length} employees still need extra coaching`,
+      detail: `Makes up ${Math.round((developing.length / total) * 100)}% of this group—set clear 60-day goals with their managers.`,
       metric: `${developing.length} staff`,
     },
   ];
@@ -231,31 +234,30 @@ export function generateDirectorySummary(ctx: InsightContext): {
 export function generateMasterAdminInsights(ctx: InsightContext): BusinessInsight[] {
   const results: BusinessInsight[] = [];
 
-  // 1. Named individual flight-risk rules (top 3 highest-risk employees in current filter)
   const highRiskStaff = [...ctx.employees]
     .filter((e) => e.riskScore >= 68)
     .sort((a, b) => b.riskScore - a.riskScore)
     .slice(0, 3);
 
   for (const emp of highRiskStaff) {
-    const compNote =
-      emp.compaRatio < 0.95
-        ? `paid ${emp.compaRatio.toFixed(2)}x market band`
-        : `at ${emp.compaRatio.toFixed(2)}x band`;
+    const payPct = Math.round((1 - emp.compaRatio) * 100);
+    const payNote =
+      payPct > 0
+        ? `paid ${payPct}% below the average for this role`
+        : `paid ${Math.abs(payPct)}% above the role average`;
     const reviewNote =
-      emp.reviewStatus === 'Overdue' ? 'with an overdue review' : `(${emp.tenureYears}y tenure)`;
+      emp.reviewStatus === 'Overdue' ? 'with an overdue review' : `(${emp.tenureYears} yrs at company)`;
     results.push({
       id: `admin-emp-${emp.id}`,
       signal: 'Action Required',
       category: 'Flight Risk',
       headline: `${emp.name} is very likely to leave the company`,
-      detail: `${emp.role} (${emp.department}) · ${compNote} ${reviewNote}. Top driver: ${emp.riskFactors[0]}.`,
+      detail: `${emp.role} in ${emp.department} — ${payNote} ${reviewNote}. Main concern: ${emp.riskFactors[0]}.`,
       metric: `${emp.riskScore}/100 risk`,
       employeeId: emp.id,
     });
   }
 
-  // 2. Department attrition ceiling rule
   const overCeilingDepts = ctx.departments.filter((d) => d.attritionRate > 12);
   if (overCeilingDepts.length > 0) {
     const worst = [...overCeilingDepts].sort((a, b) => b.attritionRate - a.attritionRate)[0];
@@ -263,8 +265,8 @@ export function generateMasterAdminInsights(ctx: InsightContext): BusinessInsigh
       id: 'admin-dept-attr',
       signal: 'Action Required',
       category: 'Flight Risk',
-      headline: `${worst.name} turnover exceeds 12% policy ceiling`,
-      detail: `Annualized attrition is ${worst.attritionRate}% (+${(worst.attritionRate - 12).toFixed(1)}% above target) across ${worst.headcount} staff. Schedule stay interviews.`,
+      headline: `${worst.name} is losing too many employees`,
+      detail: `${worst.attritionRate}% of ${worst.name} staff are leaving per year (+${(worst.attritionRate - 12).toFixed(1)}% above our 12% limit) across ${worst.headcount} people. Schedule check-in talks.`,
       metric: `${worst.attritionRate}%`,
     });
   } else {
@@ -272,13 +274,12 @@ export function generateMasterAdminInsights(ctx: InsightContext): BusinessInsigh
       id: 'admin-dept-attr-ok',
       signal: 'Positive',
       category: 'Flight Risk',
-      headline: `All filtered departments are below 12% attrition`,
-      detail: `Weighted turnover stands at ${ctx.attritionRate}%, saving an estimated $240K in replacement hiring costs this quarter.`,
+      headline: `Staff turnover is healthy across all selected teams`,
+      detail: `Turnover is ${ctx.attritionRate}% per year, staying safely under our 12% limit and saving replacement hiring costs.`,
       metric: `${ctx.attritionRate}%`,
     });
   }
 
-  // 3. Compensation & pay-equity rule: high performers paid below market
   const underpaidStars = ctx.employees.filter(
     (e) => e.performance === 'Exceeds' && e.compaRatio < 0.94
   );
@@ -288,8 +289,8 @@ export function generateMasterAdminInsights(ctx: InsightContext): BusinessInsigh
       id: 'admin-comp-stars',
       signal: 'Action Required',
       category: 'Compensation',
-      headline: `${underpaidStars.length} top performers paid below 0.94x market band`,
-      detail: `Includes ${lead.name} (${lead.compaRatio.toFixed(2)}x). Adjusting them to 1.00x median mitigates immediate poaching risk.`,
+      headline: `${underpaidStars.length} top performers are paid below market rate`,
+      detail: `Includes ${lead.name} (paid ${Math.round((1 - lead.compaRatio) * 100)}% below average). Raising their pay will help stop other companies from recruiting them.`,
       metric: `${underpaidStars.length} top staff`,
       employeeId: lead.id,
     });
@@ -300,13 +301,12 @@ export function generateMasterAdminInsights(ctx: InsightContext): BusinessInsigh
       id: 'admin-comp-healthy',
       signal: 'Positive',
       category: 'Compensation',
-      headline: `Top performers are competitively positioned (${avgCompa.toFixed(2)}x)`,
-      detail: `No "Exceeds" performers fall below 0.94x market median; gender pay parity holds at 99.1% across L3–L7.`,
+      headline: `Top performers are paid fairly (${avgCompa.toFixed(2)}x market rate)`,
+      detail: `No top performers are underpaid, and men and women in the same roles are paid 99.1% equally.`,
       metric: `${avgCompa.toFixed(2)}x`,
     });
   }
 
-  // 4. Hiring bottleneck rule: oldest open requisition
   const agedReqs = [...ctx.requisitions].sort((a, b) => b.daysOpen - a.daysOpen);
   if (agedReqs.length > 0 && agedReqs[0].daysOpen >= 30) {
     const topReq = agedReqs[0];
@@ -314,8 +314,8 @@ export function generateMasterAdminInsights(ctx: InsightContext): BusinessInsigh
       id: 'admin-req-bottleneck',
       signal: 'Watch',
       category: 'Hiring',
-      headline: `${topReq.title} is stalled at ${topReq.daysOpen} days open`,
-      detail: `Currently in ${topReq.stage} (${topReq.candidates} candidates, HM: ${topReq.hiringManager}). Expand referral sourcing to cut time-to-fill.`,
+      headline: `${topReq.title} has been open for ${topReq.daysOpen} days`,
+      detail: `Currently in ${topReq.stage} with ${topReq.candidates} applicants (Hiring Manager: ${topReq.hiringManager}). Ask staff for referrals to speed this up.`,
       metric: `${topReq.daysOpen}d open`,
     });
   } else {
@@ -323,13 +323,12 @@ export function generateMasterAdminInsights(ctx: InsightContext): BusinessInsigh
       id: 'admin-req-sla',
       signal: 'Positive',
       category: 'Hiring',
-      headline: `Hiring pipeline is operating within 30-day SLA`,
-      detail: `Average time-to-fill is ${ctx.avgTimeToFill} days with 88.5% offer acceptance and 94% referral close rate.`,
+      headline: `Open jobs are being filled within our 30-day goal`,
+      detail: `It takes ${ctx.avgTimeToFill} days on average to hire someone, and 88.5% of candidates accept our job offers.`,
       metric: `${ctx.avgTimeToFill}d avg`,
     });
   }
 
-  // 5. Performance & review compliance rule
   const overdueStaff = ctx.employees.filter((e) => e.reviewStatus === 'Overdue');
   const totalCount = ctx.employees.length || 1;
   results.push({
@@ -338,16 +337,15 @@ export function generateMasterAdminInsights(ctx: InsightContext): BusinessInsigh
     category: 'Performance',
     headline:
       overdueStaff.length > 0
-        ? `${overdueStaff.length} evaluations overdue (${Math.round((overdueStaff.length / totalCount) * 100)}% of slice)`
-        : `100% of performance evaluations are on track`,
+        ? `${overdueStaff.length} staff have overdue performance reviews`
+        : `All performance reviews are up to date`,
     detail:
       overdueStaff.length > 0
-        ? `Unfinished reviews delay merit calibration and increase voluntary churn. Send manager nudges before Nov 20.`
-        : `All filtered employees have completed or in-progress Q4 reviews ahead of calibration lock.`,
+        ? `${Math.round((overdueStaff.length / totalCount) * 100)}% of reviews are still waiting on managers. Remind them before the Nov 20 deadline.`
+        : `Every employee in this group has a completed or in-progress review.`,
     metric: `${overdueStaff.length} overdue`,
   });
 
-  // 6. Succession bench & eNPS rule
   const stars = ctx.employees.filter(
     (e) => e.performance === 'Exceeds' && e.potential === 'High'
   );
@@ -355,8 +353,8 @@ export function generateMasterAdminInsights(ctx: InsightContext): BusinessInsigh
     id: 'admin-perf-bench',
     signal: ctx.eNps >= 50 ? 'Positive' : 'Watch',
     category: 'Performance',
-    headline: `${stars.length} "Exceeds · High Potential" leaders in succession bench`,
-    detail: `Engagement eNPS is +${ctx.eNps} (${Math.round((stars.length / totalCount) * 100)}% high-potential density). Pair bench leaders with critical Q1 initiatives.`,
+    headline: `${stars.length} high-performing staff are ready for leadership`,
+    detail: `Employee happiness is +${ctx.eNps}, and ${Math.round((stars.length / totalCount) * 100)}% of this team are strong candidates for future promotions.`,
     metric: `+${ctx.eNps} eNPS`,
   });
 

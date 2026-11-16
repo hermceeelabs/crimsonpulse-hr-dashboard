@@ -8,7 +8,14 @@ export type Department =
   | 'Customer Success';
 
 export type Location = 'All Hubs' | 'New York' | 'London' | 'Lagos' | 'Remote';
-export type Timeframe = 'Q4 2026' | 'YTD 2026' | 'Last 12 Months' | 'Q3 2026';
+export type Timeframe =
+  | 'Q4 2026'
+  | 'Q3 2026'
+  | 'Q2 2026'
+  | 'Q1 2026'
+  | 'YTD 2026'
+  | 'Last 12 Months'
+  | 'All Time';
 
 export interface Employee {
   id: string;
@@ -79,7 +86,15 @@ export const DEPARTMENTS: Department[] = [
 
 export const LOCATIONS: Location[] = ['All Hubs', 'New York', 'London', 'Lagos', 'Remote'];
 
-export const TIMEFRAMES: Timeframe[] = ['Q4 2026', 'YTD 2026', 'Last 12 Months', 'Q3 2026'];
+export const TIMEFRAMES: Timeframe[] = [
+  'Q4 2026',
+  'Q3 2026',
+  'Q2 2026',
+  'Q1 2026',
+  'YTD 2026',
+  'Last 12 Months',
+  'All Time',
+];
 
 export const DEPARTMENT_STATS: DepartmentStat[] = [
   {

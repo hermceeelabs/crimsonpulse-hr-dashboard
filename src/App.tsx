@@ -133,12 +133,18 @@ export function App() {
 
   const timeframeAdjust = useMemo(() => {
     switch (selectedTimeframe) {
+      case 'Q1 2026':
+        return { hc: 0.91, attr: 0.9, enps: -5, ttf: 5 };
+      case 'Q2 2026':
+        return { hc: 0.94, attr: 0.4, enps: -3, ttf: 3 };
       case 'Q3 2026':
         return { hc: 0.96, attr: -0.6, enps: -2, ttf: 2 };
       case 'YTD 2026':
         return { hc: 0.99, attr: -0.2, enps: -1, ttf: 1 };
       case 'Last 12 Months':
         return { hc: 1, attr: 0.3, enps: -1, ttf: 0 };
+      case 'All Time':
+        return { hc: 1, attr: -0.8, enps: 2, ttf: -2 };
       default:
         return { hc: 1, attr: 0, enps: 0, ttf: 0 };
     }
@@ -168,14 +174,24 @@ export function App() {
 
     // Dynamic deltas & positive indicators reactive to Department, Hub & Timeframe
     const qoqGrowth =
-      selectedTimeframe === 'Q3 2026'
+      selectedTimeframe === 'Q1 2026'
+        ? +(3.4 + (eNps - 45) * 0.1).toFixed(1)
+        : selectedTimeframe === 'Q2 2026'
+        ? +(4.1 + (eNps - 47) * 0.12).toFixed(1)
+        : selectedTimeframe === 'Q3 2026'
         ? +(4.8 + (eNps - 50) * 0.12).toFixed(1)
         : selectedTimeframe === 'YTD 2026'
         ? +(12.4 + (eNps - 50) * 0.15).toFixed(1)
+        : selectedTimeframe === 'All Time'
+        ? +(28.5 + (eNps - 50) * 0.2).toFixed(1)
         : +(6.2 + (eNps - 54) * 0.18).toFixed(1);
-    const headcountDelta = `${qoqGrowth >= 0 ? '+' : ''}${qoqGrowth}% ${
-      selectedTimeframe === 'YTD 2026' ? 'YTD' : 'QoQ'
-    }`;
+    const periodLabel =
+      selectedTimeframe === 'YTD 2026'
+        ? 'YTD'
+        : selectedTimeframe === 'All Time'
+        ? 'All Time'
+        : 'QoQ';
+    const headcountDelta = `${qoqGrowth >= 0 ? '+' : ''}${qoqGrowth}% ${periodLabel}`;
 
     const attrDiff = +(attritionRate - 12.0).toFixed(1);
     const attritionPositive = attrDiff <= 0;
