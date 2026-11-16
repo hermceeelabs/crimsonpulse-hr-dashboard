@@ -35,7 +35,6 @@ import {
   EXIT_REASONS,
   HIRING_SOURCES,
   OPEN_REQUISITIONS,
-  TENURE_COHORT_RISK,
   EMPLOYEES,
   PAY_EQUITY_BY_LEVEL,
 } from './data/hrData';
@@ -50,7 +49,6 @@ import { EmployeeDrawer } from './components/EmployeeDrawer';
 import { EditableBoard } from './components/EditableBoard';
 import { InsightsStack, InsightsStrip } from './components/InsightsPanel';
 import {
-  generateOverviewInsights,
   generateTalentInsights,
   generateRetentionInsights,
   generateCompInsights,
@@ -261,7 +259,98 @@ export function App() {
     [filteredDepts, filteredEmployees, filteredReqs, selectedDept, kpis]
   );
 
-  const overviewInsights = useMemo(() => generateOverviewInsights(insightCtx), [insightCtx]);
+  const funnelScale = useMemo(() => {
+    const tfFactor =
+      selectedTimeframe === 'Q1 2026'
+        ? 0.82
+        : selectedTimeframe === 'Q2 2026'
+        ? 0.9
+        : selectedTimeframe === 'Q3 2026'
+        ? 0.95
+        : selectedTimeframe === 'YTD 2026'
+        ? 2.8
+        : selectedTimeframe === 'Last 12 Months'
+        ? 3.6
+        : selectedTimeframe === 'All Time'
+        ? 6.4
+        : 1;
+    return kpis.scaleFactor * tfFactor;
+  }, [kpis.scaleFactor, selectedTimeframe]);
+
+  const filteredFunnel = useMemo(
+    () =>
+      RECRUITING_FUNNEL.map((step) => ({
+        ...step,
+        count: Math.max(1, Math.round(step.count * funnelScale)),
+      })),
+    [funnelScale]
+  );
+
+  const filteredSources = useMemo(
+    () =>
+      HIRING_SOURCES.map((src) => ({
+        ...src,
+        hires: Math.max(1, Math.round(src.hires * funnelScale)),
+        avgDays: Math.max(14, Math.round(src.avgDays + (kpis.avgTimeToFill - 32) * 0.6)),
+      })),
+    [funnelScale, kpis.avgTimeToFill]
+  );
+
+  const filteredExitReasons = useMemo(
+    () =>
+      EXIT_REASONS.map((item) => ({
+        ...item,
+        count: Math.max(1, Math.round(item.count * funnelScale)),
+      })),
+    [funnelScale]
+  );
+
+  const filteredTenureRisk = useMemo(() => {
+    const buckets = [
+      { cohort: '< 6 Months', match: (t: number) => t < 0.5 },
+      { cohort: '6–18 Months', match: (t: number) => t >= 0.5 && t < 1.5 },
+      { cohort: '1.5–3 Years', match: (t: number) => t >= 1.5 && t < 3 },
+      { cohort: '3–5 Years', match: (t: number) => t >= 3 && t < 5 },
+      { cohort: '5+ Years', match: (t: number) => t >= 5 },
+    ];
+    return buckets.map((b) => {
+      const list = filteredEmployees.filter((e) => b.match(e.tenureYears));
+      const total = list.length || 1;
+      const high = Math.round((list.filter((e) => e.flightRisk === 'High').length / total) * 100);
+      const medium = Math.round((list.filter((e) => e.flightRisk === 'Medium').length / total) * 100);
+      const low = Math.max(0, 100 - high - medium);
+      return { cohort: b.cohort, count: list.length, low, medium, high };
+    });
+  }, [filteredEmployees]);
+
+  const filteredPayEquity = useMemo(() => {
+    const deptMult =
+      selectedDept === 'Engineering'
+        ? 1.06
+        : selectedDept === 'Product & Design'
+        ? 1.02
+        : selectedDept === 'Sales & GTM'
+        ? 0.98
+        : selectedDept === 'Customer Success'
+        ? 0.94
+        : 1.0;
+    const hubMult =
+      selectedLocation === 'New York'
+        ? 1.05
+        : selectedLocation === 'London'
+        ? 1.01
+        : selectedLocation === 'Lagos'
+        ? 0.93
+        : 1.0;
+    const mult = deptMult * hubMult;
+    return PAY_EQUITY_BY_LEVEL.map((lvl) => ({
+      level: lvl.level,
+      maleAvg: Math.round(lvl.maleAvg * mult),
+      femaleAvg: Math.round(lvl.femaleAvg * mult),
+      targetBand: Math.round(lvl.targetBand * mult),
+    }));
+  }, [selectedDept, selectedLocation]);
+
   const talentInsights = useMemo(() => generateTalentInsights(insightCtx), [insightCtx]);
   const retentionInsights = useMemo(() => generateRetentionInsights(insightCtx), [insightCtx]);
   const compInsights = useMemo(() => generateCompInsights(insightCtx), [insightCtx]);
@@ -754,7 +843,7 @@ export function App() {
                   },
                   {
                     id: 'card-funnel',
-                    colSpan: 4,
+                    colSpan: 6,
                     heightPx: 215,
                     content: (
                       <div className="rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-5 py-3.5 shadow-xs flex flex-col overflow-hidden">
@@ -769,8 +858,8 @@ export function App() {
                           </button>
                         </div>
                         <div className="flex-1 min-h-0 flex flex-col justify-center space-y-2">
-                          {RECRUITING_FUNNEL.slice(0, 5).map((step, i) => {
-                            const pct = Math.max(12, (step.count / RECRUITING_FUNNEL[0].count) * 100);
+                          {filteredFunnel.slice(0, 5).map((step, i) => {
+                            const pct = Math.max(12, (step.count / filteredFunnel[0].count) * 100);
                             return (
                               <div key={step.stage} className="space-y-0.5">
                                 <div className="flex items-center justify-between text-[11px]">
@@ -797,7 +886,7 @@ export function App() {
                   },
                   {
                     id: 'card-watchlist',
-                    colSpan: 4,
+                    colSpan: 6,
                     heightPx: 215,
                     content: (
                       <div className="rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-5 py-3.5 shadow-xs flex flex-col overflow-hidden">
@@ -835,18 +924,6 @@ export function App() {
                           ))}
                         </div>
                       </div>
-                    ),
-                  },
-                  {
-                    id: 'card-insights',
-                    colSpan: 4,
-                    heightPx: 215,
-                    content: (
-                      <InsightsStack
-                        title="Executive Business Insights"
-                        insights={overviewInsights}
-                        compact
-                      />
                     ),
                   },
                 ]}
@@ -1009,7 +1086,7 @@ export function App() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[var(--border-subtle)] tabular-nums">
-                        {HIRING_SOURCES.map((src) => (
+                        {filteredSources.map((src) => (
                           <tr key={src.source}>
                             <td className="py-2 font-semibold">{src.source}</td>
                             <td className="py-2 text-right font-bold">{src.hires}</td>
@@ -1074,7 +1151,7 @@ export function App() {
                       </p>
                     </div>
                     <div className="my-auto">
-                      <AttritionDonutChart items={EXIT_REASONS} />
+                      <AttritionDonutChart items={filteredExitReasons} />
                     </div>
                   </div>
 
@@ -1086,7 +1163,7 @@ export function App() {
                       </p>
                     </div>
                     <div className="space-y-3.5 my-auto">
-                      {TENURE_COHORT_RISK.map((row) => (
+                      {filteredTenureRisk.map((row) => (
                         <div key={row.cohort} className="space-y-1">
                           <div className="flex items-center justify-between text-xs">
                             <span className="font-semibold">{row.cohort}</span>
@@ -1161,8 +1238,8 @@ export function App() {
                       </p>
                     </div>
                     <div className="space-y-3 my-auto">
-                      {PAY_EQUITY_BY_LEVEL.map((lvl) => {
-                        const maxVal = 220000;
+                      {filteredPayEquity.map((lvl) => {
+                        const maxVal = 240000;
                         return (
                           <div key={lvl.level} className="space-y-1">
                             <div className="flex items-center justify-between text-xs">
@@ -1302,32 +1379,37 @@ export function App() {
                             </button>
                           ))}
                       </div>
-                    ) : (
+                    ) : (() => {
+                      const promoters = Math.min(82, Math.max(40, Math.round(52 + kpis.eNps * 0.3)));
+                      const detractors = Math.max(4, promoters - kpis.eNps);
+                      const passives = Math.max(0, 100 - promoters - detractors);
+                      return (
                       <div className="space-y-4 my-auto">
                         <div className="text-4xl font-extrabold tabular-nums text-[#6B0F1A] dark:text-rose-200">
                           +{kpis.eNps}
                         </div>
                         <div className="flex h-3.5 w-full overflow-hidden rounded-full">
-                          <div style={{ width: '68%' }} className="bg-[#6B0F1A]" />
-                          <div style={{ width: '20%' }} className="bg-[#D49BA4]" />
-                          <div style={{ width: '12%' }} className="bg-[#26060B]" />
+                          <div style={{ width: `${promoters}%` }} className="bg-[#6B0F1A]" />
+                          <div style={{ width: `${passives}%` }} className="bg-[#D49BA4]" />
+                          <div style={{ width: `${detractors}%` }} className="bg-[#26060B]" />
                         </div>
                         <div className="grid grid-cols-3 gap-2 text-xs tabular-nums">
                           <div className="rounded-xl bg-[var(--bg-canvas)] p-2.5">
                             <div className="text-[var(--text-muted)]">Promoters</div>
-                            <div className="font-bold text-[#6B0F1A]">68%</div>
+                            <div className="font-bold text-[#6B0F1A]">{promoters}%</div>
                           </div>
                           <div className="rounded-xl bg-[var(--bg-canvas)] p-2.5">
                             <div className="text-[var(--text-muted)]">Passives</div>
-                            <div className="font-bold">20%</div>
+                            <div className="font-bold">{passives}%</div>
                           </div>
                           <div className="rounded-xl bg-[var(--bg-canvas)] p-2.5">
                             <div className="text-[var(--text-muted)]">Detractors</div>
-                            <div className="font-bold">12%</div>
+                            <div className="font-bold">{detractors}%</div>
                           </div>
                         </div>
                       </div>
-                    )}
+                      );
+                    })()}
                   </div>
                 </div>
 

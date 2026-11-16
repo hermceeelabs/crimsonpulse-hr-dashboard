@@ -26,7 +26,7 @@ export const EditableBoard: React.FC<EditableBoardProps> = ({
   editMode,
   resetSignal,
 }) => {
-  const storageKey = `crimsonpulse-layout-${boardKey}`;
+  const storageKey = `crimsonpulse-layout-v2-${boardKey}`;
 
   const [layout, setLayout] = useState<SavedLayout>(() => {
     try {
