@@ -58,7 +58,7 @@ export const HeadcountTrendChart: React.FC<{
   const width = 680;
   const height = 165;
   const padL = 42;
-  const padR = 16;
+  const padR = 36;
   const padT = 10;
   const padB = 24;
   const chartW = width - padL - padR;
@@ -71,7 +71,9 @@ export const HeadcountTrendChart: React.FC<{
   const maxHC = Math.ceil(rawMax / 10) * 10;
   const hcRange = maxHC - minHC || 1;
 
-  const maxFlow = Math.max(...scaled.map((d) => Math.max(d.hires, d.exits)), 10);
+  const rawFlowMax = Math.max(...scaled.map((d) => Math.max(d.hires, d.exits)), 8);
+  const maxFlow = Math.ceil(rawFlowMax / 4) * 4;
+  const flowTicks = [0, Math.round(maxFlow * 0.25), Math.round(maxFlow * 0.5), Math.round(maxFlow * 0.75), maxFlow];
 
   const getX = (i: number) =>
     padL + xInset + (i / (scaled.length - 1)) * (chartW - xInset * 2);
@@ -148,11 +150,19 @@ export const HeadcountTrendChart: React.FC<{
           );
         })}
 
-        {/* Solid Y-axis spine and X-axis baseline */}
+        {/* Solid Y-axis spines (left & right) and X-axis baseline */}
         <line
           x1={padL}
           y1={padT}
           x2={padL}
+          y2={padT + chartH}
+          stroke="var(--border-strong)"
+          strokeWidth="1.5"
+        />
+        <line
+          x1={width - padR}
+          y1={padT}
+          x2={width - padR}
           y2={padT + chartH}
           stroke="var(--border-strong)"
           strokeWidth="1.5"
@@ -166,12 +176,37 @@ export const HeadcountTrendChart: React.FC<{
           strokeWidth="1.5"
         />
 
-        {/* Hires & Exits subtle background bars */}
+        {/* Right Y-axis ticks & labels (0-based Hires / Exits scale) */}
+        {flowTicks.map((tick, idx) => {
+          const y = padT + chartH - (tick / maxFlow) * (chartH * 0.48);
+          return (
+            <g key={`flow-${idx}`}>
+              <line
+                x1={width - padR}
+                y1={y}
+                x2={width - padR + 4}
+                y2={y}
+                stroke="var(--border-strong)"
+                strokeWidth="1.25"
+              />
+              <text
+                x={width - padR + 7}
+                y={y + 3.5}
+                textAnchor="start"
+                className="fill-[#B83B5E] text-[9.5px] tabular-nums font-medium"
+              >
+                {tick}
+              </text>
+            </g>
+          );
+        })}
+
+        {/* Hires & Exits bars (mapped to right Y-axis 0..maxFlow) */}
         {scaled.map((d, i) => {
           const x = getX(i);
           const barW = 8;
-          const hireH = (d.hires / maxFlow) * (chartH * 0.42);
-          const exitH = (d.exits / maxFlow) * (chartH * 0.42);
+          const hireH = (d.hires / maxFlow) * (chartH * 0.48);
+          const exitH = (d.exits / maxFlow) * (chartH * 0.48);
           const isHovered = hoveredIdx === i;
           return (
             <g key={d.month}>
