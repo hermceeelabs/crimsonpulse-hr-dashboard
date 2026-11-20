@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { toPng, toSvg } from 'html-to-image';
 import {
   Users,
@@ -83,7 +83,10 @@ const RAIL_ITEMS: {
 ];
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<NavTab>('overview');
+  const [activeTab, setActiveTab] = useState<NavTab>(() => {
+    const hash = window.location.hash.replace('#', '') as NavTab;
+    return RAIL_ITEMS.some((r) => r.id === hash) ? hash : 'overview';
+  });
   const [selectedDept, setSelectedDept] = useState<Department>('All Departments');
   const [selectedLocation, setSelectedLocation] = useState<Location>('All Hubs');
   const [selectedTimeframe, setSelectedTimeframe] = useState<Timeframe>('Q4 2026');
@@ -102,6 +105,25 @@ export function App() {
   const [editMode, setEditMode] = useState(false);
   const [resetSignal, setResetSignal] = useState(0);
   const dashboardRef = useRef<HTMLDivElement>(null);
+
+  // Sync active tab with URL hash (so refresh stays on the same page) and scroll to top on tab switch
+  useEffect(() => {
+    if (window.location.hash !== `#${activeTab}`) {
+      window.history.replaceState(null, '', `#${activeTab}`);
+    }
+    window.scrollTo({ top: 0, left: 0 });
+  }, [activeTab]);
+
+  useEffect(() => {
+    const onHashChange = () => {
+      const hash = window.location.hash.replace('#', '') as NavTab;
+      if (RAIL_ITEMS.some((r) => r.id === hash)) {
+        setActiveTab(hash);
+      }
+    };
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
   const [selected9BoxCell, setSelected9BoxCell] = useState<{
     perf: Employee['performance'];
     pot: Employee['potential'];
@@ -457,11 +479,11 @@ export function App() {
   };
 
   return (
-    <div className={`${darkOxblood ? 'dark-oxblood' : ''} min-h-screen lg:h-screen w-full lg:overflow-hidden`}>
+    <div className={`${darkOxblood ? 'dark-oxblood' : ''} min-h-screen lg:h-screen w-full overflow-x-hidden lg:overflow-hidden`}>
       {/* Desktop: zero-scroll single-screen; Mobile: natural scroll + bottom navbar */}
       <div
         ref={dashboardRef}
-        className="min-h-screen lg:h-full w-full lg:overflow-hidden flex bg-[var(--bg-canvas)] text-[var(--text-primary)] p-2.5 sm:p-3.5 pb-24 lg:pb-3.5 gap-3"
+        className="min-h-screen lg:h-full w-full overflow-x-hidden lg:overflow-hidden flex bg-[var(--bg-canvas)] text-[var(--text-primary)] p-2.5 sm:p-3.5 pb-24 lg:pb-3.5 gap-3"
       >
         {/* Slim Icon-Only Left Sidebar Rail (desktop lg+ only) */}
         <aside className="hidden lg:flex relative z-30 w-16 shrink-0 h-full flex-col items-center justify-between py-4 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-xs overflow-visible">
@@ -1120,12 +1142,13 @@ export function App() {
                 </section>
 
                 <div className="min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-3">
-                  <div className="lg:col-span-5 min-h-0 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 sm:px-5 py-3.5 flex flex-col justify-between overflow-x-auto">
+                  <div className="lg:col-span-5 min-w-0 min-h-0 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 sm:px-5 py-3.5 flex flex-col justify-between overflow-hidden">
                     <div>
                       <h2 className="text-sm font-bold">Source Quality & Velocity</h2>
                       <p className="text-[11px] text-[var(--text-muted)]">Channel performance</p>
                     </div>
-                    <table className="w-full min-w-[340px] text-xs my-auto">
+                    <div className="w-full overflow-x-auto my-auto">
+                      <table className="w-full min-w-[340px] text-xs">
                       <thead>
                         <tr className="border-b border-[var(--border-subtle)] text-[var(--text-muted)] text-left">
                           <th className="pb-2 font-semibold">Channel</th>
@@ -1146,17 +1169,19 @@ export function App() {
                           </tr>
                         ))}
                       </tbody>
-                    </table>
+                      </table>
+                    </div>
                   </div>
 
-                  <div className="lg:col-span-7 min-h-0 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 sm:px-5 py-3.5 flex flex-col justify-between overflow-x-auto">
+                  <div className="lg:col-span-7 min-w-0 min-h-0 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 sm:px-5 py-3.5 flex flex-col justify-between overflow-hidden">
                     <div>
                       <h2 className="text-sm font-bold">Priority Open Requisitions</h2>
                       <p className="text-[11px] text-[var(--text-muted)]">
                         {filteredReqs.length} active roles
                       </p>
                     </div>
-                    <table className="w-full min-w-[480px] text-xs my-auto">
+                    <div className="w-full overflow-x-auto my-auto">
+                      <table className="w-full min-w-[480px] text-xs">
                       <thead>
                         <tr className="border-b border-[var(--border-subtle)] text-[var(--text-muted)] text-left">
                           <th className="pb-2 font-semibold">Role</th>
@@ -1179,7 +1204,8 @@ export function App() {
                           </tr>
                         ))}
                       </tbody>
-                    </table>
+                      </table>
+                    </div>
                   </div>
                 </div>
 
@@ -1553,7 +1579,8 @@ export function App() {
                           </tr>
                         ))}
                       </tbody>
-                    </table>
+                      </table>
+                    </div>
                   </div>
                 </div>
 
@@ -1591,11 +1618,11 @@ export function App() {
         </div>
       </div>
 
-      {/* Mobile Bottom Navigation Bar (< lg, docked flush to bottom with rounded top corners) */}
+      {/* Mobile Bottom Navigation Bar (< lg, fixed height, docked flush to bottom with rounded top corners) */}
       <nav
         data-snapshot-ignore="true"
         aria-label="Mobile navigation"
-        className="fixed bottom-0 inset-x-0 z-40 lg:hidden rounded-t-3xl border-t border-x border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-[0_-6px_24px_rgba(38,6,11,0.08)] px-2.5 py-2.5 flex items-center justify-between gap-1 overflow-x-auto"
+        className="fixed bottom-0 inset-x-0 z-40 lg:hidden h-16 rounded-t-3xl border-t border-x border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-[0_-6px_24px_rgba(38,6,11,0.08)] px-2 flex items-center justify-between gap-1 overflow-x-auto"
       >
         {RAIL_ITEMS.map((item) => {
           const Icon = item.icon;
