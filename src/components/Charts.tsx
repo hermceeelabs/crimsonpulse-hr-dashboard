@@ -59,11 +59,11 @@ export const HeadcountTrendChart: React.FC<{
   }));
 
   const width = 680;
-  const height = 165;
+  const height = 200;
   const padL = 42;
   const padR = 36;
-  const padT = 10;
-  const padB = 24;
+  const padT = 12;
+  const padB = 26;
   const chartW = width - padL - padR;
   const chartH = height - padT - padB;
   const xInset = 18;
