@@ -1591,11 +1591,11 @@ export function App() {
         </div>
       </div>
 
-      {/* Mobile Bottom Navigation Bar (< lg) */}
+      {/* Mobile Bottom Navigation Bar (< lg, docked flush to bottom) */}
       <nav
         data-snapshot-ignore="true"
         aria-label="Mobile navigation"
-        className="fixed bottom-2.5 inset-x-2.5 z-40 lg:hidden rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)]/95 backdrop-blur-md shadow-xl px-1.5 py-1.5 flex items-center justify-between gap-1 overflow-x-auto"
+        className="fixed bottom-0 inset-x-0 z-40 lg:hidden border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 py-1.5 flex items-center justify-between gap-1 overflow-x-auto"
       >
         {RAIL_ITEMS.map((item) => {
           const Icon = item.icon;
