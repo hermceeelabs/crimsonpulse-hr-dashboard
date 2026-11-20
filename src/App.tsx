@@ -461,7 +461,7 @@ export function App() {
       {/* Desktop: zero-scroll single-screen; Mobile: natural scroll + bottom navbar */}
       <div
         ref={dashboardRef}
-        className="min-h-screen lg:h-full w-full lg:overflow-hidden flex bg-[var(--bg-canvas)] text-[var(--text-primary)] p-2.5 sm:p-3.5 pb-20 lg:pb-3.5 gap-3"
+        className="min-h-screen lg:h-full w-full lg:overflow-hidden flex bg-[var(--bg-canvas)] text-[var(--text-primary)] p-2.5 sm:p-3.5 pb-24 lg:pb-3.5 gap-3"
       >
         {/* Slim Icon-Only Left Sidebar Rail (desktop lg+ only) */}
         <aside className="hidden lg:flex relative z-30 w-16 shrink-0 h-full flex-col items-center justify-between py-4 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-xs overflow-visible">
@@ -1591,11 +1591,11 @@ export function App() {
         </div>
       </div>
 
-      {/* Mobile Bottom Navigation Bar (< lg, docked flush to bottom) */}
+      {/* Mobile Bottom Navigation Bar (< lg, docked flush to bottom with rounded top corners) */}
       <nav
         data-snapshot-ignore="true"
         aria-label="Mobile navigation"
-        className="fixed bottom-0 inset-x-0 z-40 lg:hidden border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 py-1.5 flex items-center justify-between gap-1 overflow-x-auto"
+        className="fixed bottom-0 inset-x-0 z-40 lg:hidden rounded-t-3xl border-t border-x border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-[0_-6px_24px_rgba(38,6,11,0.08)] px-2.5 py-2.5 flex items-center justify-between gap-1 overflow-x-auto"
       >
         {RAIL_ITEMS.map((item) => {
           const Icon = item.icon;
@@ -1605,7 +1605,7 @@ export function App() {
               key={item.id}
               type="button"
               onClick={() => setActiveTab(item.id)}
-              className={`flex-1 min-w-[46px] flex flex-col items-center justify-center gap-0.5 rounded-xl py-1.5 px-1 text-[10px] font-semibold transition cursor-pointer ${
+              className={`flex-1 min-w-[48px] flex flex-col items-center justify-center gap-1 rounded-2xl py-2 px-1 text-[10px] font-semibold transition cursor-pointer ${
                 isActive
                   ? 'bg-[#6B0F1A] text-white shadow-sm'
                   : 'text-[var(--text-secondary)] hover:text-[#6B0F1A]'
