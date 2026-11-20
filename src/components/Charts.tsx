@@ -216,8 +216,8 @@ export const HeadcountTrendChart: React.FC<{
                 width={barW}
                 height={hireH}
                 rx={2.5}
-                fill={isHovered ? '#6B0F1A' : '#B83B5E'}
-                opacity={isHovered ? 0.9 : 0.35}
+                fill="#2E7D5B"
+                opacity={isHovered ? 0.95 : 0.65}
                 className="transition-all duration-150"
               />
               <rect
@@ -226,8 +226,8 @@ export const HeadcountTrendChart: React.FC<{
                 width={barW}
                 height={exitH}
                 rx={2.5}
-                fill={isHovered ? '#26060B' : '#D49BA4'}
-                opacity={isHovered ? 0.9 : 0.45}
+                fill="#C96A2B"
+                opacity={isHovered ? 0.95 : 0.65}
                 className="transition-all duration-150"
               />
             </g>
@@ -326,9 +326,9 @@ export const HeadcountTrendChart: React.FC<{
             <span className="text-[var(--text-muted)]">Headcount:</span>
             <span className="font-semibold text-right">{activePoint.headcount}</span>
             <span className="text-[var(--text-muted)]">New Hires:</span>
-            <span className="font-semibold text-[#6B0F1A] text-right">+{activePoint.hires}</span>
+            <span className="font-semibold text-[#2E7D5B] text-right">+{activePoint.hires}</span>
             <span className="text-[var(--text-muted)]">Departures:</span>
-            <span className="font-semibold text-[var(--text-secondary)] text-right">
+            <span className="font-semibold text-[#C96A2B] text-right">
               -{activePoint.exits}
             </span>
             <span className="text-[var(--text-muted)]">Net Growth:</span>

@@ -842,10 +842,10 @@ export function App() {
                               <span className="h-2 w-2 rounded-full bg-[#6B0F1A]" /> Headcount (L)
                             </span>
                             <span className="inline-flex items-center gap-1.5">
-                              <span className="h-2 w-2 rounded-sm bg-[#B83B5E]/60" /> Hires (R)
+                              <span className="h-2 w-2 rounded-sm bg-[#2E7D5B]" /> Hires (R)
                             </span>
                             <span className="inline-flex items-center gap-1.5">
-                              <span className="h-2 w-2 rounded-sm bg-[#D49BA4]/80" /> Exits (R)
+                              <span className="h-2 w-2 rounded-sm bg-[#C96A2B]" /> Exits (R)
                             </span>
                           </div>
                         </div>
