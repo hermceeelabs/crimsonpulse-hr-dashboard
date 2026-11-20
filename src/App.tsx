@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { toPng, toSvg } from 'html-to-image';
+import { toPng } from 'html-to-image';
+import { jsPDF } from 'jspdf';
 import {
   Users,
   UserMinus,
@@ -12,7 +13,7 @@ import {
   Award,
   Search,
   Download,
-  Camera,
+  FileText,
   Moon,
   Sun,
   ArrowUpRight,
@@ -96,8 +97,8 @@ export function App() {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [selectedInsight, setSelectedInsight] = useState<BusinessInsight | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const [snapshotMenuOpen, setSnapshotMenuOpen] = useState(false);
-  const [isCapturing, setIsCapturing] = useState(false);
+  const [pdfMenuOpen, setPdfMenuOpen] = useState(false);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [dirPage, setDirPage] = useState(1);
   const [insightCategory, setInsightCategory] = useState<
     'All' | 'Flight Risk' | 'Hiring' | 'Compensation' | 'Performance'
@@ -408,73 +409,107 @@ export function App() {
     showToast(`Exported ${filteredEmployees.length} records`);
   };
 
-  const captureNode = async (tabId: NavTab, format: 'png' | 'svg') => {
+  const capturePageForPdf = async () => {
     const node = dashboardRef.current;
-    if (!node) return;
+    if (!node) return null;
 
+    const isDesktop = window.innerWidth >= 1024;
     const prevStyle = {
       width: node.style.width,
       height: node.style.height,
       position: node.style.position,
       top: node.style.top,
       left: node.style.left,
+      paddingBottom: node.style.paddingBottom,
     };
 
     try {
-      node.style.position = 'fixed';
-      node.style.top = '0';
-      node.style.left = '0';
-      node.style.width = '1920px';
-      node.style.height = '1080px';
+      if (isDesktop) {
+        node.style.position = 'fixed';
+        node.style.top = '0';
+        node.style.left = '0';
+        node.style.width = '1920px';
+        node.style.height = '1080px';
+      } else {
+        // On mobile: keep natural mobile width, remove bottom-navbar clearance gap
+        node.style.paddingBottom = '14px';
+      }
 
-      await new Promise((r) => setTimeout(r, 120));
+      await new Promise((r) => setTimeout(r, 150));
 
-      const options = {
-        width: 1920,
-        height: 1080,
-        canvasWidth: 1920,
-        canvasHeight: 1080,
-        pixelRatio: 1,
+      const captureW = isDesktop ? 1920 : node.clientWidth;
+      const captureH = isDesktop ? 1080 : node.scrollHeight;
+
+      const dataUrl = await toPng(node, {
+        width: captureW,
+        height: captureH,
+        canvasWidth: captureW,
+        canvasHeight: captureH,
+        pixelRatio: isDesktop ? 1 : 2,
         filter: (el: HTMLElement) => el?.dataset?.snapshotIgnore !== 'true',
-      };
-      const dataUrl = format === 'png' ? await toPng(node, options) : await toSvg(node, options);
-      const link = document.createElement('a');
-      link.download = `crimsonpulse-${tabId}-1920x1080.${format}`;
-      link.href = dataUrl;
-      link.click();
+      });
+
+      return { dataUrl, width: captureW, height: captureH };
     } finally {
       node.style.width = prevStyle.width;
       node.style.height = prevStyle.height;
       node.style.position = prevStyle.position;
       node.style.top = prevStyle.top;
       node.style.left = prevStyle.left;
+      node.style.paddingBottom = prevStyle.paddingBottom;
     }
   };
 
-  const handleSnapshot = async (format: 'png' | 'svg', allPages: boolean) => {
-    setSnapshotMenuOpen(false);
-    setIsCapturing(true);
+  const handleExportPdf = async (allPages: boolean) => {
+    setPdfMenuOpen(false);
+    setIsExportingPdf(true);
     const originalTab = activeTab;
 
     try {
-      if (!allPages) {
-        await new Promise((r) => setTimeout(r, 120));
-        await captureNode(activeTab, format);
-        showToast(`Saved ${activeTab} (${format.toUpperCase()} · 1920×1080)`);
-      } else {
-        for (const item of RAIL_ITEMS) {
+      const targets = allPages ? RAIL_ITEMS : [RAIL_ITEMS.find((r) => r.id === activeTab)!];
+      let pdf: jsPDF | null = null;
+
+      for (let i = 0; i < targets.length; i++) {
+        const item = targets[i];
+        if (allPages) {
           setActiveTab(item.id);
           await new Promise((r) => setTimeout(r, 260));
-          await captureNode(item.id, format);
         }
-        setActiveTab(originalTab);
-        showToast(`Exported all ${RAIL_ITEMS.length} pages (${format.toUpperCase()} · 1920×1080)`);
+        const shot = await capturePageForPdf();
+        if (!shot) continue;
+
+        const orientation = shot.width >= shot.height ? 'landscape' : 'portrait';
+        if (!pdf) {
+          pdf = new jsPDF({
+            orientation,
+            unit: 'px',
+            format: [shot.width, shot.height],
+            hotfixes: ['px_scaling'],
+          });
+        } else {
+          pdf.addPage([shot.width, shot.height], orientation);
+        }
+        pdf.addImage(shot.dataUrl, 'PNG', 0, 0, shot.width, shot.height);
+      }
+
+      if (allPages) setActiveTab(originalTab);
+
+      if (pdf) {
+        const filename = allPages
+          ? 'crimsonpulse-hr-report.pdf'
+          : `crimsonpulse-${originalTab}.pdf`;
+        pdf.save(filename);
+        showToast(
+          allPages
+            ? `Exported all ${targets.length} pages to PDF`
+            : `Exported ${originalTab} page to PDF`
+        );
       }
     } catch {
       setActiveTab(originalTab);
-      showToast('Snapshot failed — please try again');
+      showToast('PDF export failed — please try again');
     } finally {
-      setIsCapturing(false);
+      setIsExportingPdf(false);
     }
   };
 
@@ -664,47 +699,32 @@ export function App() {
               <div className="relative" data-snapshot-ignore="true">
                 <button
                   type="button"
-                  disabled={isCapturing}
-                  onClick={() => setSnapshotMenuOpen((o) => !o)}
+                  disabled={isExportingPdf}
+                  onClick={() => setPdfMenuOpen((o) => !o)}
                   className="inline-flex items-center gap-1.5 rounded-full bg-[#6B0F1A] hover:bg-[#450912] text-white px-3.5 py-1.5 text-xs font-semibold transition cursor-pointer disabled:opacity-60"
                 >
-                  <Camera className="h-3.5 w-3.5" />
-                  <span>{isCapturing ? 'Capturing...' : 'Snapshot'}</span>
+                  <FileText className="h-3.5 w-3.5" />
+                  <span>{isExportingPdf ? 'Exporting...' : 'PDF'}</span>
                 </button>
 
-                {snapshotMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-60 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-1.5 shadow-xl z-50 text-xs">
+                {pdfMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-56 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-1.5 shadow-xl z-50 text-xs">
                     <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
-                      Full HD · 1920 × 1080
+                      Export Report (PDF)
                     </div>
                     <button
                       type="button"
-                      onClick={() => handleSnapshot('png', false)}
+                      onClick={() => handleExportPdf(false)}
                       className="w-full text-left rounded-xl px-3 py-2 hover:bg-[var(--bg-surface-muted)] font-medium cursor-pointer"
                     >
-                      Current Page (PNG)
+                      Current Page (PDF)
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleSnapshot('svg', false)}
-                      className="w-full text-left rounded-xl px-3 py-2 hover:bg-[var(--bg-surface-muted)] font-medium cursor-pointer"
-                    >
-                      Current Page (SVG)
-                    </button>
-                    <div className="my-1 border-t border-[var(--border-subtle)]" />
-                    <button
-                      type="button"
-                      onClick={() => handleSnapshot('png', true)}
+                      onClick={() => handleExportPdf(true)}
                       className="w-full text-left rounded-xl px-3 py-2 hover:bg-[var(--bg-surface-muted)] font-bold text-[#6B0F1A] dark:text-rose-200 cursor-pointer"
                     >
-                      All 6 Pages (PNG)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleSnapshot('svg', true)}
-                      className="w-full text-left rounded-xl px-3 py-2 hover:bg-[var(--bg-surface-muted)] font-bold text-[#6B0F1A] dark:text-rose-200 cursor-pointer"
-                    >
-                      All 6 Pages (SVG)
+                      All 7 Pages (PDF)
                     </button>
                   </div>
                 )}
