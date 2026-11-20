@@ -139,11 +139,12 @@ export const EditableBoard: React.FC<EditableBoardProps> = ({
   return (
     <div
       ref={gridRef}
-      className="flex-1 min-h-0 grid grid-cols-12 gap-3 content-start overflow-y-auto pr-0.5"
+      className="flex-1 min-h-0 grid grid-cols-12 gap-3 content-start lg:overflow-y-auto pr-0.5"
     >
       {orderedWidgets.map((w) => {
         const size = layout.sizes[w.id] ?? { colSpan: w.colSpan, heightPx: w.heightPx };
         const isOver = dragOverId === w.id && draggedId !== w.id;
+        const isKpi = w.id.startsWith('kpi-');
 
         return (
           <div
@@ -169,11 +170,13 @@ export const EditableBoard: React.FC<EditableBoardProps> = ({
               setDraggedId(null);
               setDragOverId(null);
             }}
-            style={{
-              gridColumn: `span ${size.colSpan} / span ${size.colSpan}`,
-              height: `${size.heightPx}px`,
-            }}
-            className={`relative min-h-0 flex flex-col transition-shadow ${
+            style={
+              {
+                '--col-span': size.colSpan,
+                '--card-h': `${size.heightPx}px`,
+              } as React.CSSProperties
+            }
+            className={`board-widget ${isKpi ? 'board-widget-kpi' : ''} relative min-h-0 flex flex-col transition-shadow ${
               editMode
                 ? 'ring-1 ring-dashed ring-[#6B0F1A]/45 rounded-3xl cursor-grab active:cursor-grabbing'
                 : ''

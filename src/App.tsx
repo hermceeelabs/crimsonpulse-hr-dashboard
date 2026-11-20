@@ -67,14 +67,19 @@ type NavTab =
   | 'performance'
   | 'directory';
 
-const RAIL_ITEMS: { id: NavTab; label: string; icon: React.FC<{ className?: string }> }[] = [
-  { id: 'overview', label: 'Overview', icon: Home },
-  { id: 'insights', label: 'Admin Insights', icon: Lightbulb },
-  { id: 'talent', label: 'Talent & Hiring', icon: UserPlus },
-  { id: 'retention', label: 'Retention & Risk', icon: ShieldAlert },
-  { id: 'compensation', label: 'Compensation', icon: Wallet },
-  { id: 'performance', label: 'Performance', icon: Award },
-  { id: 'directory', label: 'Directory', icon: Users },
+const RAIL_ITEMS: {
+  id: NavTab;
+  label: string;
+  shortLabel: string;
+  icon: React.FC<{ className?: string }>;
+}[] = [
+  { id: 'overview', label: 'Overview', shortLabel: 'Home', icon: Home },
+  { id: 'insights', label: 'Admin Insights', shortLabel: 'Insights', icon: Lightbulb },
+  { id: 'talent', label: 'Talent & Hiring', shortLabel: 'Hiring', icon: UserPlus },
+  { id: 'retention', label: 'Retention & Risk', shortLabel: 'Risk', icon: ShieldAlert },
+  { id: 'compensation', label: 'Compensation', shortLabel: 'Comp', icon: Wallet },
+  { id: 'performance', label: 'Performance', shortLabel: 'Perf', icon: Award },
+  { id: 'directory', label: 'Directory', shortLabel: 'People', icon: Users },
 ];
 
 export function App() {
@@ -452,14 +457,14 @@ export function App() {
   };
 
   return (
-    <div className={`${darkOxblood ? 'dark-oxblood' : ''} h-screen w-screen overflow-hidden`}>
-      {/* Single-screen locked viewport: zero scroll on left rail & zero scroll on right canvas */}
+    <div className={`${darkOxblood ? 'dark-oxblood' : ''} min-h-screen lg:h-screen w-full lg:overflow-hidden`}>
+      {/* Desktop: zero-scroll single-screen; Mobile: natural scroll + bottom navbar */}
       <div
         ref={dashboardRef}
-        className="h-full w-full overflow-hidden flex bg-[var(--bg-canvas)] text-[var(--text-primary)] p-2.5 sm:p-3.5 gap-3"
+        className="min-h-screen lg:h-full w-full lg:overflow-hidden flex bg-[var(--bg-canvas)] text-[var(--text-primary)] p-2.5 sm:p-3.5 pb-20 lg:pb-3.5 gap-3"
       >
-        {/* Slim Icon-Only Left Sidebar Rail (matching reference image style) */}
-        <aside className="relative z-30 w-16 shrink-0 h-full flex flex-col items-center justify-between py-4 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-xs overflow-visible">
+        {/* Slim Icon-Only Left Sidebar Rail (desktop lg+ only) */}
+        <aside className="hidden lg:flex relative z-30 w-16 shrink-0 h-full flex-col items-center justify-between py-4 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] shadow-xs overflow-visible">
           {/* Top Brand Mark */}
           <button
             type="button"
@@ -513,12 +518,19 @@ export function App() {
           </button>
         </aside>
 
-        {/* Right Main Content Frame (zero vertical scroll, fits 100vh) */}
-        <div className="flex-1 min-w-0 h-full flex flex-col gap-3 overflow-hidden">
+        {/* Right Main Content Frame */}
+        <div className="flex-1 min-w-0 lg:h-full flex flex-col gap-3 lg:overflow-hidden">
           {/* Top Floating Bar (search, filters, actions) */}
-          <header className="shrink-0 flex items-center justify-between gap-3 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 py-2 shadow-xs">
-            {/* Left Search */}
-            <div className="flex items-center gap-3">
+          <header className="shrink-0 flex items-center justify-between gap-2 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 sm:px-4 py-2 shadow-xs">
+            {/* Left Brand (mobile) + Search */}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setActiveTab('overview')}
+                className="lg:hidden h-8 w-8 rounded-xl flex items-center justify-center bg-gradient-to-br from-[#6B0F1A] to-[#450912] text-white shrink-0"
+              >
+                <BarChart3 className="h-4 w-4" />
+              </button>
               {showSearchInput ? (
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[var(--text-muted)]" />
@@ -544,8 +556,8 @@ export function App() {
               )}
             </div>
 
-            {/* Center/Right Compact Filters */}
-            <div className="hidden xl:flex items-center gap-2 text-xs">
+            {/* Center/Right Compact Filters (desktop lg+) */}
+            <div className="hidden lg:flex items-center gap-2 text-xs">
               <select
                 value={selectedDept}
                 onChange={(e) => setSelectedDept(e.target.value as Department)}
@@ -598,7 +610,7 @@ export function App() {
               </div>
 
               {activeTab === 'overview' && (
-                <div className="flex items-center gap-1.5" data-snapshot-ignore="true">
+                <div className="hidden lg:flex items-center gap-1.5" data-snapshot-ignore="true">
                   <button
                     type="button"
                     onClick={() => setEditMode((m) => !m)}
@@ -679,10 +691,10 @@ export function App() {
               <button
                 type="button"
                 onClick={handleExportCSV}
-                className="inline-flex items-center gap-1.5 rounded-full bg-[var(--bg-canvas)] border border-[var(--border-subtle)] hover:border-[#6B0F1A] px-3.5 py-1.5 text-xs font-semibold transition cursor-pointer"
+                className="inline-flex items-center gap-1.5 rounded-full bg-[var(--bg-canvas)] border border-[var(--border-subtle)] hover:border-[#6B0F1A] px-2.5 sm:px-3.5 py-1.5 text-xs font-semibold transition cursor-pointer"
               >
                 <Download className="h-3.5 w-3.5 text-[#6B0F1A]" />
-                <span>Export</span>
+                <span className="hidden sm:inline">Export</span>
               </button>
 
               <button
@@ -697,15 +709,52 @@ export function App() {
               <button
                 type="button"
                 onClick={() => showToast('All HR systems synced · Q4 2026')}
-                className="h-8 w-8 rounded-full flex items-center justify-center border border-[var(--border-subtle)] bg-[var(--bg-canvas)] text-[var(--text-secondary)] hover:border-[#6B0F1A] cursor-pointer"
+                className="hidden sm:flex h-8 w-8 rounded-full items-center justify-center border border-[var(--border-subtle)] bg-[var(--bg-canvas)] text-[var(--text-secondary)] hover:border-[#6B0F1A] cursor-pointer"
               >
                 <Bell className="h-3.5 w-3.5" />
               </button>
             </div>
           </header>
 
-          {/* Single-Screen Bento Content (min-h-0 flex-1, zero scroll) */}
-          <main className="flex-1 min-h-0 overflow-hidden flex flex-col gap-3">
+          {/* Mobile & Tablet Filter Strip (< lg) */}
+          <div className="flex lg:hidden items-center gap-2 overflow-x-auto pb-0.5 text-xs shrink-0">
+            <select
+              value={selectedDept}
+              onChange={(e) => setSelectedDept(e.target.value as Department)}
+              className="rounded-full border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-1.5 font-medium focus:outline-none shrink-0"
+            >
+              {DEPARTMENTS.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </select>
+            <select
+              value={selectedLocation}
+              onChange={(e) => setSelectedLocation(e.target.value as Location)}
+              className="rounded-full border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-1.5 font-medium focus:outline-none shrink-0"
+            >
+              {LOCATIONS.map((loc) => (
+                <option key={loc} value={loc}>
+                  {loc}
+                </option>
+              ))}
+            </select>
+            <select
+              value={selectedTimeframe}
+              onChange={(e) => setSelectedTimeframe(e.target.value as Timeframe)}
+              className="rounded-full border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-1.5 font-medium focus:outline-none shrink-0"
+            >
+              {TIMEFRAMES.map((tf) => (
+                <option key={tf} value={tf}>
+                  {tf}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Main Content (scrolls naturally on mobile, zero-scroll on lg+) */}
+          <main className="flex-1 min-h-0 lg:overflow-hidden flex flex-col gap-3">
             {activeTab === 'overview' && (
               <EditableBoard
                 boardKey="overview"
@@ -900,7 +949,7 @@ export function App() {
                             View all ↗
                           </button>
                         </div>
-                        <div className="flex-1 min-h-0 grid grid-cols-2 grid-rows-2 gap-2">
+                        <div className="flex-1 min-h-0 grid grid-cols-1 sm:grid-cols-2 sm:grid-rows-2 gap-2">
                           {filteredEmployees.slice(0, 4).map((emp) => (
                             <button
                               key={emp.id}
@@ -942,10 +991,10 @@ export function App() {
               const positiveCount = masterInsights.filter((i) => i.signal === 'Positive').length;
 
               return (
-                <div className="flex-1 min-h-0 flex flex-col gap-3 animate-enter overflow-hidden">
+                <div className="flex-1 min-h-0 flex flex-col gap-3 animate-enter lg:overflow-hidden">
                   {/* Top Summary & Category Filter Bar */}
-                  <div className="shrink-0 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-5 py-3 shadow-xs flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center gap-5 text-xs">
+                  <div className="shrink-0 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 sm:px-5 py-3 shadow-xs flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
                       <div>
                         <span className="text-[var(--text-muted)]">Rules Evaluated: </span>
                         <strong className="tabular-nums">{masterInsights.length}</strong>
@@ -964,7 +1013,7 @@ export function App() {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 overflow-x-auto max-w-full pb-0.5">
                       {categories.map((cat) => (
                         <button
                           key={cat}
@@ -983,7 +1032,7 @@ export function App() {
                   </div>
 
                   {/* Insights Grid (clean summary cards; click any card to reveal full details) */}
-                  <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-2 gap-3 overflow-hidden">
+                  <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-2 gap-3 lg:overflow-hidden">
                     {visibleInsights.slice(0, 8).map((ins) => {
                       const barColor =
                         ins.signal === 'Action Required'
@@ -1071,12 +1120,12 @@ export function App() {
                 </section>
 
                 <div className="min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-3">
-                  <div className="lg:col-span-5 min-h-0 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-5 py-3.5 flex flex-col justify-between overflow-hidden">
+                  <div className="lg:col-span-5 min-h-0 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 sm:px-5 py-3.5 flex flex-col justify-between overflow-x-auto">
                     <div>
                       <h2 className="text-sm font-bold">Source Quality & Velocity</h2>
                       <p className="text-[11px] text-[var(--text-muted)]">Channel performance</p>
                     </div>
-                    <table className="w-full text-xs my-auto">
+                    <table className="w-full min-w-[340px] text-xs my-auto">
                       <thead>
                         <tr className="border-b border-[var(--border-subtle)] text-[var(--text-muted)] text-left">
                           <th className="pb-2 font-semibold">Channel</th>
@@ -1100,14 +1149,14 @@ export function App() {
                     </table>
                   </div>
 
-                  <div className="lg:col-span-7 min-h-0 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-5 py-3.5 flex flex-col justify-between overflow-hidden">
+                  <div className="lg:col-span-7 min-h-0 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 sm:px-5 py-3.5 flex flex-col justify-between overflow-x-auto">
                     <div>
                       <h2 className="text-sm font-bold">Priority Open Requisitions</h2>
                       <p className="text-[11px] text-[var(--text-muted)]">
                         {filteredReqs.length} active roles
                       </p>
                     </div>
-                    <table className="w-full text-xs my-auto">
+                    <table className="w-full min-w-[480px] text-xs my-auto">
                       <thead>
                         <tr className="border-b border-[var(--border-subtle)] text-[var(--text-muted)] text-left">
                           <th className="pb-2 font-semibold">Role</th>
@@ -1427,9 +1476,9 @@ export function App() {
                 safePage * pageSize
               );
               return (
-              <div className="flex-1 min-h-0 flex flex-col gap-3 animate-enter overflow-hidden">
-                <div className="flex-1 min-h-0 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-5 py-4 flex flex-col justify-between overflow-hidden">
-                  <div className="flex items-center justify-between mb-2">
+              <div className="flex-1 min-h-0 flex flex-col gap-3 animate-enter lg:overflow-hidden">
+                <div className="flex-1 min-h-0 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 sm:px-5 py-4 flex flex-col justify-between overflow-hidden">
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                     <div>
                       <h2 className="text-sm font-bold">
                         People Directory ({filteredEmployees.length})
@@ -1460,8 +1509,8 @@ export function App() {
                       </button>
                     </div>
                   </div>
-                  <div className="flex-1 min-h-0 overflow-hidden">
-                    <table className="w-full text-xs">
+                  <div className="flex-1 min-h-0 overflow-x-auto lg:overflow-hidden">
+                    <table className="w-full min-w-[640px] text-xs">
                       <thead>
                         <tr className="border-b border-[var(--border-subtle)] text-[var(--text-muted)] text-left">
                           <th className="pb-2 font-semibold">Employee</th>
@@ -1541,6 +1590,33 @@ export function App() {
           </main>
         </div>
       </div>
+
+      {/* Mobile Bottom Navigation Bar (< lg) */}
+      <nav
+        data-snapshot-ignore="true"
+        aria-label="Mobile navigation"
+        className="fixed bottom-2.5 inset-x-2.5 z-40 lg:hidden rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)]/95 backdrop-blur-md shadow-xl px-1.5 py-1.5 flex items-center justify-between gap-1 overflow-x-auto"
+      >
+        {RAIL_ITEMS.map((item) => {
+          const Icon = item.icon;
+          const isActive = activeTab === item.id;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setActiveTab(item.id)}
+              className={`flex-1 min-w-[46px] flex flex-col items-center justify-center gap-0.5 rounded-xl py-1.5 px-1 text-[10px] font-semibold transition cursor-pointer ${
+                isActive
+                  ? 'bg-[#6B0F1A] text-white shadow-sm'
+                  : 'text-[var(--text-secondary)] hover:text-[#6B0F1A]'
+              }`}
+            >
+              <Icon className="h-4 w-4" />
+              <span className="truncate max-w-full">{item.shortLabel}</span>
+            </button>
+          );
+        })}
+      </nav>
 
       {/* 360° Employee Profile Drawer */}
       <EmployeeDrawer

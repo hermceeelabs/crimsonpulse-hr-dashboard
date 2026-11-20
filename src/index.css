@@ -92,3 +92,21 @@
 .animate-enter {
   animation: fadeSlideUp 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+
+/* Responsive EditableBoard widgets: stacked on mobile, custom drag/resize spans on lg+ */
+.board-widget {
+  grid-column: span 12 / span 12;
+}
+
+@media (min-width: 640px) {
+  .board-widget-kpi {
+    grid-column: span 6 / span 6;
+  }
+}
+
+@media (min-width: 1024px) {
+  .board-widget {
+    grid-column: span var(--col-span) / span var(--col-span);
+    height: var(--card-h);
+  }
+}
