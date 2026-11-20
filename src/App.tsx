@@ -829,15 +829,15 @@ export function App() {
                     colSpan: 7,
                     heightPx: 255,
                     content: (
-                      <div className="rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-5 py-3.5 shadow-xs flex flex-col overflow-hidden">
-                        <div className="shrink-0 flex items-center justify-between mb-1.5">
+                      <div className="rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 sm:px-5 py-3.5 shadow-xs flex flex-col overflow-hidden">
+                        <div className="shrink-0 flex flex-wrap items-center justify-between gap-2 mb-2">
                           <div>
                             <h2 className="text-sm font-bold leading-tight">Headcount Velocity & Turnover</h2>
                             <p className="text-[11px] text-[var(--text-muted)]">
                               12-month active workforce with hires vs. departures
                             </p>
                           </div>
-                          <div className="flex items-center gap-3 text-[11px] text-[var(--text-secondary)]">
+                          <div className="flex flex-wrap items-center gap-3 text-[11px] text-[var(--text-secondary)]">
                             <span className="inline-flex items-center gap-1.5">
                               <span className="h-2 w-2 rounded-full bg-[#6B0F1A]" /> Headcount (L)
                             </span>
@@ -1083,7 +1083,7 @@ export function App() {
             {activeTab === 'talent' && (() => {
               const criticalCount = filteredReqs.filter((r) => r.priority === 'Critical').length;
               return (
-              <div className="flex-1 min-h-0 grid grid-rows-[auto_minmax(0,1fr)_auto] gap-3 animate-enter">
+              <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-rows-[auto_minmax(0,1fr)_auto] gap-3 animate-enter">
                 <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                   <KpiCard
                     title="Open Requisitions"
@@ -1190,7 +1190,7 @@ export function App() {
 
             {/* RETENTION & RISK TAB */}
             {activeTab === 'retention' && (
-              <div className="flex-1 min-h-0 grid grid-rows-[minmax(0,1fr)_auto] gap-3 animate-enter">
+              <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-rows-[minmax(0,1fr)_auto] gap-3 animate-enter">
                 <div className="min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-3">
                   <div className="lg:col-span-6 min-h-0 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5 flex flex-col justify-between overflow-hidden">
                     <div>
@@ -1246,7 +1246,7 @@ export function App() {
               ).toFixed(2);
               const compaDiff = +((avgCompa - 1.0) * 100).toFixed(1);
               return (
-              <div className="flex-1 min-h-0 grid grid-rows-[auto_minmax(0,1fr)] gap-3 animate-enter">
+              <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-rows-[auto_minmax(0,1fr)] gap-3 animate-enter">
                 <section className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <KpiCard
                     title="Annualized Base Payroll"
@@ -1343,7 +1343,7 @@ export function App() {
 
             {/* PERFORMANCE & 9-BOX TAB */}
             {activeTab === 'performance' && (
-              <div className="flex-1 min-h-0 grid grid-rows-[minmax(0,1fr)_auto] gap-3 animate-enter">
+              <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-rows-[minmax(0,1fr)_auto] gap-3 animate-enter">
                 <div className="min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-3">
                   <div className="lg:col-span-7 min-h-0 rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5 flex flex-col justify-between overflow-hidden">
                     <div className="flex items-center justify-between">

@@ -22,7 +22,10 @@ export const Sparkline: React.FC<{
   const linePath = `M ${points.join(' L ')}`;
 
   return (
-    <svg width={width} height={height} className="overflow-visible">
+    <svg
+      viewBox={`0 0 ${width} ${height}`}
+      className="w-20 sm:w-[104px] h-auto shrink-0 overflow-visible"
+    >
       <defs>
         <linearGradient id={`spark-${color.replace('#', '')}`} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={color} stopOpacity="0.24" />
@@ -91,11 +94,11 @@ export const HeadcountTrendChart: React.FC<{
   const activePoint = hoveredIdx !== null ? scaled[hoveredIdx] : null;
 
   return (
-    <div className="relative w-full h-full flex items-center">
+    <div className="relative w-full lg:h-full flex items-center">
       <svg
         viewBox={`0 0 ${width} ${height}`}
         preserveAspectRatio="xMidYMid meet"
-        className="w-full h-full max-h-full overflow-hidden"
+        className="w-full h-auto lg:h-full max-h-full block overflow-hidden"
       >
         <defs>
           <linearGradient id="hcAreaGrad" x1="0" y1="0" x2="0" y2="1">
