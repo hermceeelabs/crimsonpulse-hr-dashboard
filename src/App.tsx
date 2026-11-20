@@ -1582,7 +1582,6 @@ export function App() {
                       </table>
                     </div>
                   </div>
-                </div>
 
                 {/* Rule-Based Roster Summary Strip */}
                 <div className="shrink-0 grid grid-cols-2 lg:grid-cols-4 gap-3">
